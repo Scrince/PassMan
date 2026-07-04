@@ -1,0 +1,677 @@
+PassMan - Vault Encryption and File Format Specification
+========================================================
+
+Document status
+---------------
+
+This document is the byte-level encryption specification for the current
+PassMan Python/PyQt implementation in this repository.
+
+Normative implementation files:
+
+  src/crypto/encryption.py
+  src/crypto/key_derivation.py
+  src/crypto/vault.py
+  src/models/vault_model.py
+  src/models/entry.py
+  src/utils/file_paths.py
+
+This document describes the encrypted vault file format, byte encodings, key
+derivation, AES-GCM invocation, write ordering, backup behavior, validation
+behavior, and security boundary. It does not describe operating-system code
+signing, GPG release signing, GUI layout, or package-manager trust.
+
+
+Release boundary
+----------------
+
+The current PassMan vault format is:
+
+  vault version      = 1
+  vault filename     = vault.dat
+  backup filename    = vault.dat.bak
+  cipher             = AES-256-GCM
+  KDF                = Argon2id
+  salt length        = 16 bytes
+  nonce length       = 12 bytes
+  AES key length     = 32 bytes
+  GCM tag length     = 16 bytes, appended to ciphertext by cryptography AESGCM
+  file container     = UTF-8 JSON text
+  binary encoding    = standard Base64 text
+
+The encrypted payload is an AES-GCM ciphertext concatenated with its 16-byte
+authentication tag. The payload is Base64 encoded and stored as a JSON string.
+
+
+Vault locations
+---------------
+
+The active vault path is provided to Vault(vault_path()).
+
+When running from source:
+
+  vault path = repository root / "vault.dat"
+
+When running as a frozen Linux build:
+
+  if XDG_DATA_HOME is set:
+      vault path = XDG_DATA_HOME / "PassMan" / "vault.dat"
+  else:
+      vault path = HOME / ".local" / "share" / "PassMan" / "vault.dat"
+
+When running as a frozen non-Linux build:
+
+  vault path = directory containing sys.executable / "vault.dat"
+
+The backup path is always:
+
+  active vault path with ".bak" appended to the filename
+
+For example:
+
+  vault.dat     -> vault.dat.bak
+  /x/vault.dat  -> /x/vault.dat.bak
+
+
+Outer encrypted document
+------------------------
+
+The encrypted vault file is UTF-8 JSON with two top-level members:
+
+  header
+  payload
+
+The outer document is serialized with Python:
+
+  json.dumps(document, indent=2, sort_keys=True)
+
+This means:
+
+  - UTF-8 text is written to disk.
+  - Object keys are sorted lexicographically at every dictionary level.
+  - Indentation is two ASCII space characters per nesting level.
+  - The default separators are used: comma followed by one space, colon
+    followed by one space.
+  - A final newline is not intentionally appended by PassMan.
+  - Non-ASCII characters are escaped by Python json.dumps default behavior
+    because ensure_ascii defaults to True.
+
+The logical document before JSON serialization is:
+
+  {
+    "header": {
+      "version": 1,
+      "algorithm": "AES-256-GCM",
+      "salt": "<base64 16 random bytes>",
+      "nonce": "<base64 12 random bytes>",
+      "kdf": {
+        "type": "argon2id",
+        "time_cost": 3,
+        "memory_cost": 65536,
+        "parallelism": 4,
+        "hash_len": 32
+      }
+    },
+    "payload": "<base64 AES-GCM ciphertext||tag>"
+  }
+
+Because sort_keys=True is used, the actual byte order of keys in the written
+file is lexicographic, not insertion order. The top-level key order on disk is:
+
+  header
+  payload
+
+The header key order on disk is:
+
+  algorithm
+  kdf
+  nonce
+  salt
+  version
+
+The kdf key order on disk is:
+
+  hash_len
+  memory_cost
+  parallelism
+  time_cost
+  type
+
+
+Base64 encoding
+---------------
+
+All binary values stored in the outer file are encoded with:
+
+  base64.b64encode(data).decode("ascii")
+
+All binary values read from the file are decoded with:
+
+  base64.b64decode(text.encode("ascii"), validate=True)
+
+The validate=True flag rejects non-Base64 alphabet characters.
+
+Base64 fields:
+
+  header.salt      = 16 raw bytes -> 24 Base64 characters with padding
+  header.nonce     = 12 raw bytes -> 16 Base64 characters, no padding required
+  payload          = len(ciphertext_and_tag) bytes -> Base64 with padding as needed
+
+
+Plaintext model before encryption
+---------------------------------
+
+The plaintext encrypted by AES-GCM is the UTF-8 encoding of the vault model
+JSON:
+
+  plaintext = json.dumps(model.to_json_dict(), indent=2, sort_keys=True).encode("utf-8")
+
+There is no compression, padding, length hiding, chunking, streaming mode, or
+outer envelope MAC. The plaintext length is directly reflected by the
+ciphertext length, plus the fixed 16-byte GCM tag.
+
+The logical plaintext object is:
+
+  {
+    "entries": [
+      {
+        "id": "<hex uuid string>",
+        "name": "<entry name>",
+        "type": "Website|Wallet|Drive|Custom|...",
+        "fields": {
+          "<field name>": "<field value>",
+          ...
+        },
+        "notes": "<entry notes>",
+        "created_at": "<ISO-8601 UTC timestamp>",
+        "modified_at": "<ISO-8601 UTC timestamp>"
+      }
+    ],
+    "settings": {
+      "debug_enabled": false,
+      "auto_lock_seconds": 300,
+      "clipboard_clear_seconds": 30,
+      "theme_name": "<theme name>"
+    }
+  }
+
+Because sort_keys=True is used recursively, the entry object key order in the
+encrypted plaintext bytes is lexicographic:
+
+  created_at
+  fields
+  id
+  modified_at
+  name
+  notes
+  type
+
+The settings object key order in plaintext is:
+
+  auto_lock_seconds
+  clipboard_clear_seconds
+  debug_enabled
+  theme_name
+
+The order of entries in the entries array is the in-memory order of
+VaultModel.entries. Sorting in the GUI changes display order only; it does not
+sort the stored list unless code explicitly modifies the model list.
+
+Field dictionaries are serialized with lexicographic key order. The GUI
+normally stores field values as strings, but JSON-compatible values can be read
+from existing vaults because Entry.from_dict copies fields with dict(...).
+
+
+Timestamps
+----------
+
+New entries use:
+
+  datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+Typical timestamp shape:
+
+  2026-07-03T18:23:46+00:00
+
+The timestamp strings are encrypted as ordinary JSON string values. They are
+not separately signed or validated as timestamps during decryption.
+
+
+Randomness
+----------
+
+For each vault write, PassMan generates:
+
+  salt  = os.urandom(16)
+  nonce = os.urandom(12)
+
+The nonce is generated by new_nonce(), which returns os.urandom(NONCE_SIZE)
+where NONCE_SIZE is 12.
+
+Salt and nonce are regenerated for every save, including ordinary entry edits,
+settings changes, and password changes. Existing ciphertext is not updated in
+place.
+
+Security requirement:
+
+  For a fixed AES key, AES-GCM nonce reuse is catastrophic. PassMan avoids
+  intentional nonce reuse by deriving a fresh key from a fresh salt and using a
+  fresh 12-byte nonce for every write. Correct operation depends on the
+  operating system CSPRNG behind os.urandom.
+
+
+Master password byte encoding
+-----------------------------
+
+The master password is converted to bytes with:
+
+  password_bytes = password.encode("utf-8")
+
+There is no Unicode normalization step. This is important:
+
+  - "e" + combining acute accent and precomposed "e acute" are different
+    passwords if their UTF-8 byte sequences differ.
+  - Leading spaces, trailing spaces, newlines, and case are significant.
+  - The empty password is rejected by derive_key().
+
+The GUI also rejects an empty master password before vault creation or unlock.
+
+
+Key derivation
+--------------
+
+The KDF is Argon2id from argon2-cffi:
+
+  argon2.low_level.hash_secret_raw(..., type=Type.ID)
+
+Default parameters written into every new vault are:
+
+  type        = "argon2id"
+  time_cost   = 3
+  memory_cost = 65536
+  parallelism = 4
+  hash_len    = 32
+
+The exact call is:
+
+  key = hash_secret_raw(
+      secret      = password.encode("utf-8"),
+      salt        = decoded 16-byte salt,
+      time_cost   = int(kdf["time_cost"]),
+      memory_cost = int(kdf["memory_cost"]),
+      parallelism = int(kdf["parallelism"]),
+      hash_len    = int(kdf["hash_len"]),
+      type        = Type.ID,
+  )
+
+The output is the raw 32-byte AES key. It is not Base64 encoded before use by
+AES-GCM.
+
+The stored kdf.type string is descriptive in the current implementation. The
+derive_key function always invokes Argon2id Type.ID. It does not branch on the
+stored kdf.type value.
+
+The current implementation accepts KDF cost values from the vault file and
+casts them with int(...). A tampered file can therefore force decryption
+failure or request expensive Argon2 work. Treat untrusted vault files as
+potential denial-of-service inputs.
+
+
+AES-GCM encryption
+------------------
+
+The encryption primitive is:
+
+  cryptography.hazmat.primitives.ciphers.aead.AESGCM
+
+The implementation validates:
+
+  len(key) == 32
+
+Then it calls:
+
+  ciphertext_and_tag = AESGCM(key).encrypt(nonce, plaintext, None)
+
+Parameters:
+
+  key              = 32-byte Argon2id output
+  nonce            = 12 random bytes from os.urandom
+  plaintext        = UTF-8 model JSON bytes
+  associated_data  = None
+  tag length       = 16 bytes, fixed by cryptography AESGCM
+
+The cryptography AESGCM API returns:
+
+  ciphertext || tag
+
+where:
+
+  ciphertext length = plaintext length
+  tag length        = 16 bytes
+
+The payload stored in the file is:
+
+  base64(ciphertext || tag)
+
+
+AES-GCM decryption
+------------------
+
+Unlock reads the outer JSON text as UTF-8:
+
+  raw = json.loads(path.read_text(encoding="utf-8"))
+
+Then it extracts:
+
+  header = raw.get("header", {})
+  payload = raw.get("payload")
+
+It requires:
+
+  isinstance(header, dict)
+  isinstance(payload, str)
+
+Then it decodes:
+
+  salt       = base64_decode(header["salt"])
+  nonce      = base64_decode(header["nonce"])
+  kdf        = dict(header["kdf"])
+  ciphertext = base64_decode(payload)
+
+Then it derives:
+
+  key = derive_key(password, salt, kdf)
+
+Then it calls:
+
+  plaintext = AESGCM(key).decrypt(nonce, ciphertext, None)
+
+If AES-GCM authentication fails, cryptography raises InvalidTag. PassMan maps
+that to:
+
+  InvalidPasswordError("Incorrect password or corrupted vault.")
+
+If JSON shape, Base64, KDF field, or plaintext parsing fails, PassMan maps the
+failure to VaultFormatError unless it is already an InvalidPasswordError.
+
+
+Authenticated and unauthenticated bytes
+---------------------------------------
+
+Authenticated by AES-GCM:
+
+  - The encrypted plaintext model bytes.
+  - The 16-byte GCM authentication tag over those bytes.
+
+Not authenticated as AES-GCM additional data:
+
+  - header.version
+  - header.algorithm
+  - header.salt
+  - header.nonce
+  - header.kdf
+  - payload Base64 text encoding as text
+  - outer JSON whitespace and key order
+
+Important consequences:
+
+  1. The header is not supplied to AES-GCM as associated data.
+
+  2. Tampering with salt, nonce, or KDF parameters will normally make the wrong
+     AES key or wrong nonce be used, causing GCM authentication failure.
+
+  3. Tampering with header.algorithm alone does not affect decryption in the
+     current implementation, because unlock does not check that field before
+     decrypting.
+
+  4. Reformatting outer JSON whitespace does not affect decryption as long as
+     the parsed values are unchanged.
+
+  5. Re-encoding payload Base64 into another valid textual Base64 spelling that
+     decodes to identical bytes does not affect decryption.
+
+This design authenticates the secret vault contents, but it does not bind the
+outer metadata into the AEAD transcript as associated data.
+
+
+Atomic write behavior
+---------------------
+
+PassMan writes vault files through a temporary file in the target directory.
+
+Write sequence:
+
+  1. Ensure parent directory exists:
+
+       self.path.parent.mkdir(parents=True, exist_ok=True)
+
+  2. Serialize encrypted document with:
+
+       json.dumps(document, indent=2, sort_keys=True)
+
+  3. Create a named temporary file in the same directory:
+
+       NamedTemporaryFile("w", encoding="utf-8", dir=self.path.parent, delete=False)
+
+  4. Write serialized text.
+
+  5. Flush Python file object.
+
+  6. fsync temporary file descriptor.
+
+  7. If an existing vault is present, copy it to vault.dat.bak with shutil.copy2.
+
+  8. Replace active vault path with temp_path.replace(self.path).
+
+  9. If this was the first vault write, copy the new vault to vault.dat.bak.
+
+  10. If replacement fails, unlink the temporary file when possible and re-raise.
+
+The directory itself is not fsynced after replacement. Filesystems and operating
+systems differ in how much crash consistency this provides for the directory
+entry after power loss.
+
+
+Backup and restore behavior
+---------------------------
+
+Automatic backup:
+
+  Every save preserves the previous active vault as vault.dat.bak when an
+  active vault already exists. On first creation, the new vault is copied to
+  vault.dat.bak after it is written.
+
+Corruption restore path:
+
+  If unlock of the active vault fails and vault.dat.bak exists, the application
+  attempts to unlock the backup with the same password. If backup unlock
+  succeeds and the user approves restore, the backup is copied over the active
+  vault.
+
+Manual backup:
+
+  The Backup Manager copies the encrypted vault.dat file to a user-selected
+  location. The file remains encrypted; no plaintext export is produced.
+
+Manual restore:
+
+  The selected backup file is first opened as a Vault and unlocked with the
+  current in-memory password. If it unlocks successfully, the active vault is
+  copied to vault.dat.bak, the selected backup is copied to the active vault
+  path, and the active vault is unlocked again.
+
+
+Password change behavior
+------------------------
+
+Password change executes:
+
+  1. unlock(old_password)
+  2. _write_encrypted(current_model, new_password)
+  3. self._password = new_password
+
+The change-password operation therefore decrypts with the old password and
+writes a completely new encrypted vault using:
+
+  - fresh random salt
+  - fresh random nonce
+  - Argon2id with current default parameters
+  - AES-256-GCM
+
+The previous encrypted vault is copied to vault.dat.bak during the save.
+
+
+Failure classes
+---------------
+
+InvalidPasswordError:
+
+  Raised when AES-GCM authentication fails. The implementation uses the same
+  message for an incorrect password and corrupted ciphertext because those
+  cases are intentionally indistinguishable at the cryptographic boundary.
+
+VaultFormatError:
+
+  Raised when the vault file is missing required structure, contains malformed
+  JSON, contains invalid Base64, lacks required fields, or decrypts to malformed
+  model JSON.
+
+VaultError:
+
+  Common parent for vault-operation failures that are not necessarily format
+  errors.
+
+
+Memory and process boundary
+---------------------------
+
+PassMan is a desktop application, not a hardened hardware wallet or isolated
+secret enclave.
+
+Sensitive material exists in process memory, including:
+
+  - master password Python strings
+  - Argon2 input bytes
+  - derived 32-byte AES keys
+  - decrypted plaintext JSON bytes
+  - decrypted VaultModel entries
+  - copied clipboard values
+
+The implementation does not zeroize Python strings, Python bytes, decrypted
+model objects, or derived key objects after use. Python garbage collection and
+the operating system determine when memory is reused. Crash dumps, swap,
+debuggers, malware, screen capture, clipboard managers, and remote desktop
+software are outside the protection boundary.
+
+The clipboard clear timer reduces exposure duration after copying, but it
+cannot control clipboard history managers or other processes that already read
+the clipboard.
+
+
+Threat model summary
+--------------------
+
+PassMan's vault encryption is intended to protect vault contents at rest when
+an attacker obtains vault.dat or vault.dat.bak but does not know the master
+password.
+
+It does not protect against:
+
+  - a compromised running machine
+  - keyloggers
+  - malicious builds
+  - tampered source code
+  - hostile Python packages
+  - memory disclosure
+  - clipboard capture
+  - weak master passwords
+  - denial of service through malformed vault files
+  - loss of the only valid vault and backup
+
+Users should use a high-entropy master password, keep encrypted backups, verify
+release signatures and SHA-256 sums before installing, and avoid entering
+secrets on untrusted systems.
+
+
+Implementation constants
+------------------------
+
+From src/crypto/encryption.py:
+
+  ALGORITHM  = "AES-256-GCM"
+  NONCE_SIZE = 12
+
+From src/crypto/key_derivation.py:
+
+  DEFAULT_KDF_PARAMS = {
+      "type": "argon2id",
+      "time_cost": 3,
+      "memory_cost": 65536,
+      "parallelism": 4,
+      "hash_len": 32,
+  }
+
+From src/crypto/vault.py:
+
+  VAULT_VERSION = 1
+
+From src/utils/file_paths.py:
+
+  VAULT_FILENAME   = "vault.dat"
+  APP_DATA_DIRNAME = "PassMan"
+
+
+Verification checklist for maintainers
+--------------------------------------
+
+Before claiming compatibility with this document, verify:
+
+  1. encryption.py still uses cryptography AESGCM with associated_data=None.
+
+  2. NONCE_SIZE remains 12.
+
+  3. key_derivation.py still uses argon2.low_level.hash_secret_raw with Type.ID.
+
+  4. DEFAULT_KDF_PARAMS still match the values in this document.
+
+  5. vault.py still writes salt with os.urandom(16).
+
+  6. vault.py still serializes plaintext with json.dumps(..., indent=2,
+     sort_keys=True).encode("utf-8").
+
+  7. vault.py still serializes the outer encrypted document with
+     json.dumps(..., indent=2, sort_keys=True).
+
+  8. Base64 decoding still uses validate=True.
+
+  9. Header fields are still not passed as AES-GCM associated data.
+
+  10. A changed master password rewrites the vault with fresh salt and nonce.
+
+
+Non-normative example shape
+---------------------------
+
+An encrypted vault file has this visual form. Values here are illustrative, not
+test vectors:
+
+{
+  "header": {
+    "algorithm": "AES-256-GCM",
+    "kdf": {
+      "hash_len": 32,
+      "memory_cost": 65536,
+      "parallelism": 4,
+      "time_cost": 3,
+      "type": "argon2id"
+    },
+    "nonce": "base64-12-byte-nonce",
+    "salt": "base64-16-byte-salt",
+    "version": 1
+  },
+  "payload": "base64-ciphertext-plus-16-byte-gcm-tag"
+}
+
+Actual files contain valid Base64 strings and the payload authenticates only
+under the correct master password, salt, nonce, KDF parameters, and ciphertext
+bytes.

@@ -1,0 +1,329 @@
+PassMan v1.0.0 - Linux Release Notes
+=====================================
+
+Release status
+--------------
+
+This file records the prepared v1.0.0 Linux artifacts with their measured
+filenames, package metadata, executable format, verification material, and
+operational notes.
+
+PassMan v1.0.0 is the current application release line recorded in:
+
+  src/version.py
+
+This document is Linux-specific. The encryption scheme, vault file format, and
+operational security boundary are specified separately in:
+
+  docs/Encryption.txt
+  docs/OpSec.txt
+
+
+Scope
+-----
+
+This document records Linux-specific release, installation, verification, and
+runtime notes for the v1.0.0 PyInstaller desktop build.
+
+The Linux build packages the Python/PyQt6 application into a native x86-64
+desktop executable. It does not alter the PassMan vault format. The Linux
+runtime vault remains:
+
+  $XDG_DATA_HOME/PassMan/vault.dat
+
+or, when XDG_DATA_HOME is unset:
+
+  $HOME/.local/share/PassMan/vault.dat
+
+The automatic backup remains:
+
+  vault.dat.bak
+
+
+Release Artifacts
+-----------------
+
+The v1.0.0 Linux release set currently contains amd64/x86-64 artifacts only:
+
+  dist/PassMan-linux-x64.tar.gz
+  dist/PassMan-linux-x64.deb
+
+Each Linux artifact has a detached ASCII-armored OpenPGP signature:
+
+  dist/PassMan-linux-x64.tar.gz.asc
+  dist/PassMan-linux-x64.deb.asc
+
+The release also includes the signed checksum manifest:
+
+  dist/SHA256SUMS
+  dist/SHA256SUMS.asc
+
+No Linux arm64/aarch64 package was produced for this release.
+
+No RPM package was produced for this release.
+
+No AppImage artifact is part of the v1.0.0 Linux release set. The prepared
+Linux release consists of a compressed standalone PyInstaller directory and a
+Debian package.
+
+
+Verified Artifact Metadata
+--------------------------
+
+The compressed standalone artifact was verified as:
+
+  dist/PassMan-linux-x64.tar.gz
+  gzip compressed data
+  last modified: Fri Jul 3 18:23:46 2026
+  uncompressed tar stream size modulo 2^32: 204477440 bytes
+
+The executable inside the tarball was verified as:
+
+  PassMan/PassMan
+  ELF 64-bit LSB executable
+  x86-64
+  SYSV ABI
+  dynamically linked
+  interpreter: /lib64/ld-linux-x86-64.so.2
+  minimum kernel marker: GNU/Linux 3.2.0
+  BuildID[sha1]: 34f6ce77833f8dc35eb938b6683c0edc0292f637
+  stripped
+
+The Debian package was verified as:
+
+  dist/PassMan-linux-x64.deb
+  Debian binary package format 2.0
+  control archive: control.tar.xz
+  data archive: data.tar.xz
+
+The Debian package metadata was verified as:
+
+  Package: passman
+  Version: 1.0.0
+  Section: utils
+  Priority: optional
+  Architecture: amd64
+  Maintainer: PassMan <passman@example.local>
+  Description: Encrypted password manager
+
+The Debian package installs:
+
+  /opt/PassMan/PassMan
+  /opt/PassMan/_internal/
+  /usr/bin/passman
+  /usr/share/applications/passman.desktop
+  /usr/share/icons/hicolor/256x256/apps/passman.png
+
+The desktop entry was verified as:
+
+  Type=Application
+  Name=PassMan
+  Comment=Encrypted password manager
+  Exec=passman
+  Icon=passman
+  Terminal=false
+  Categories=Utility;Security;
+
+The Debian package itself is not repository-signed by apt metadata in this
+release. Verify SHA-256 and OpenPGP signatures before installation.
+
+
+SHA-256 Verification
+--------------------
+
+The Linux artifact hashes are recorded in dist/SHA256SUMS:
+
+  23fe24e3c6c3ea694426dd1499fcb4e07796c8622bfc9d4a9cb7138ffd8de119  PassMan-linux-x64.tar.gz
+  d4cf2b7f50f7420713f5c0c7bbd44d05de6a28286c825241f530aacf5d246c9b  PassMan-linux-x64.deb
+
+Verify from the release directory with:
+
+  cd dist
+  shasum -a 256 -c SHA256SUMS
+
+or on systems using GNU coreutils:
+
+  cd dist
+  sha256sum -c SHA256SUMS
+
+Compare the output byte-for-byte against dist/SHA256SUMS before installing or
+opening an existing password vault.
+
+
+OpenPGP Signature Verification
+------------------------------
+
+The PassMan v1.0.0 release artifacts are signed with the repository release
+signing key.
+
+Public key file:
+
+  dist/PassMan-release-signing-public-key.asc
+
+Release signing identity:
+
+  PassMan Release Signing (2026) <release@passman.local>
+
+Fingerprint:
+
+  7858 E51C 98AD 2541 5098  9EF3 1F4D F0EB 1C80 C710
+
+Import the public key:
+
+  gpg --import dist/PassMan-release-signing-public-key.asc
+
+Verify the checksum manifest:
+
+  gpg --verify dist/SHA256SUMS.asc dist/SHA256SUMS
+
+Verify the Linux artifacts:
+
+  gpg --verify dist/PassMan-linux-x64.tar.gz.asc dist/PassMan-linux-x64.tar.gz
+  gpg --verify dist/PassMan-linux-x64.deb.asc dist/PassMan-linux-x64.deb
+
+Hash verification proves that the downloaded bytes match the published digest.
+OpenPGP verification proves that the digest or artifact was signed by the
+holder of the PassMan release signing private key.
+
+
+Debian or Ubuntu Installation
+-----------------------------
+
+Install the .deb package with:
+
+  sudo apt install ./dist/PassMan-linux-x64.deb
+
+or:
+
+  sudo dpkg -i ./dist/PassMan-linux-x64.deb
+  sudo apt -f install
+
+The installed command is:
+
+  passman
+
+The application files install under:
+
+  /opt/PassMan/
+
+The desktop launcher installs under:
+
+  /usr/share/applications/passman.desktop
+
+The application icon installs under:
+
+  /usr/share/icons/hicolor/256x256/apps/passman.png
+
+The package contains a self-contained PyInstaller application directory with
+Python 3.12 runtime components, PyQt6, Qt6 libraries, cryptography bindings,
+argon2-cffi bindings, and the PassMan icon asset.
+
+The package does not install a plaintext vault. Existing vault data is runtime
+user data, not a package payload.
+
+
+Standalone Tarball Use
+----------------------
+
+The tarball can be unpacked and run directly on compatible x86-64 Linux
+systems:
+
+  tar -xzf dist/PassMan-linux-x64.tar.gz
+  cd PassMan
+  ./PassMan
+
+The extracted directory contains:
+
+  PassMan/PassMan
+  PassMan/_internal/
+
+The _internal directory contains bundled Python, PyQt6, Qt6, cryptography,
+argon2-cffi, and supporting shared libraries required by the PyInstaller
+onedir application.
+
+The standalone tarball is useful for controlled testing or portable use. The
+Debian package is preferred for normal desktop integration because it installs
+the command shim, desktop entry, and icon into standard system locations.
+
+
+Runtime Vault Location
+----------------------
+
+The Linux frozen build deliberately does not store vault.dat beside the
+installed executable. It stores runtime vault data in the user's data
+directory:
+
+  if XDG_DATA_HOME is set:
+      XDG_DATA_HOME/PassMan/vault.dat
+
+  otherwise:
+      HOME/.local/share/PassMan/vault.dat
+
+The automatic backup path is:
+
+  same directory / vault.dat.bak
+
+Examples:
+
+  /home/alex/.local/share/PassMan/vault.dat
+  /home/alex/.local/share/PassMan/vault.dat.bak
+
+  /secure/profile-data/PassMan/vault.dat
+  /secure/profile-data/PassMan/vault.dat.bak
+
+The vault and backup files are encrypted user data. They must not be treated as
+build sidecars, disposable caches, or release packaging clutter.
+
+
+Operational Notes
+-----------------
+
+Linux packaging does not change the password-manager security model:
+
+  - Vault contents are still encrypted with AES-256-GCM.
+  - The master password is still processed through Argon2id.
+  - The master password is not stored by PassMan.
+  - vault.dat and vault.dat.bak remain sensitive encrypted data.
+  - The clipboard remains part of the security boundary.
+  - The display server, desktop session, shell history, crash reporting,
+    swap, hibernation, backups, and filesystem permissions remain part of the
+    security boundary.
+
+For high-value vault use, prefer an offline Linux environment, verify hashes
+and OpenPGP signatures before launch, keep vault backups on known media,
+disable untrusted remote desktop and clipboard-sync tools, lock the session
+when unattended, and copy secrets only for the shortest practical time.
+
+Do not publish vault.dat or vault.dat.bak with application binaries. Release
+artifacts and runtime password vaults are separate security domains.
+
+
+Build Reference
+---------------
+
+The v1.0.0 Linux x64 release was produced as a PyInstaller onedir application
+and then packaged as:
+
+  dist/PassMan-linux-x64.tar.gz
+  dist/PassMan-linux-x64.deb
+
+The application entry point is:
+
+  src/main.py
+
+The Linux runtime vault path logic is implemented in:
+
+  src/utils/file_paths.py
+
+The Linux release includes the icon asset:
+
+  src/assets/passman_icon.png
+
+The Debian package control metadata records:
+
+  package name: passman
+  version: 1.0.0
+  architecture: amd64
+
+Do not document RPM, AppImage, or arm64 artifacts as available unless a future
+release successfully produces, verifies, signs, and hashes those files.

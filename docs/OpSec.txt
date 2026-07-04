@@ -1,0 +1,710 @@
+PassMan - Operational Security Specification
+============================================
+
+Release Boundary
+----------------
+
+This document specifies operational security guidance for the current PassMan
+Python/PyQt desktop application in this repository.
+
+Current security-relevant implementation behavior:
+
+  - Vault contents are stored in encrypted vault.dat files.
+  - Automatic backups are stored as vault.dat.bak.
+  - Encryption uses AES-256-GCM.
+  - Key derivation uses Argon2id.
+  - The default auto-lock timer is 300 seconds.
+  - The default clipboard clear timer is 30 seconds.
+  - Manual backup creates another encrypted vault.dat-style file.
+  - Manual restore validates the selected backup with the current password
+    before replacing the active vault.
+  - Frozen Linux builds store vault.dat under XDG_DATA_HOME/PassMan.
+
+Encryption.txt defines the cryptographic file format. This document defines
+how an operator should handle the application, vault files, backups, release
+artifacts, clipboard, display, and host environment so the cryptographic
+protections are not defeated by ordinary operational mistakes.
+
+
+Scope
+-----
+
+This document applies to:
+
+  - creating a PassMan vault
+  - unlocking a PassMan vault
+  - storing and backing up vault.dat
+  - restoring vault.dat or vault.dat.bak
+  - changing the master password
+  - copying fields to the clipboard
+  - generating passwords
+  - installing packaged releases
+  - verifying SHA-256 checksums and PGP signatures
+  - handling the repo-local release-signing keyring
+
+This document is not a cryptographic proof. It does not replace
+Encryption.txt. It does not claim that a running desktop computer is a hardened
+secret enclave.
+
+
+Primary Rule
+------------
+
+Treat every unlocked PassMan session as handling live account credentials.
+
+Even if the visible UI currently shows only entry names, the same process can
+contain:
+
+  - the master password
+  - decrypted vault JSON
+  - website passwords
+  - wallet PINs
+  - recovery keys
+  - drive keys
+  - notes containing backup codes
+  - generated passwords before they are saved
+  - field values copied to the clipboard
+
+The correct operational stance is that the application process, operating
+system, display server, clipboard, filesystem, swap, backups, and room are all
+part of the security boundary.
+
+
+Threat Model
+------------
+
+In scope:
+
+  Offline vault theft:
+      An attacker obtains vault.dat, vault.dat.bak, or a manual encrypted
+      backup after the session. Protection depends on master-password entropy,
+      Argon2id parameters, AES-GCM integrity, and correct implementation.
+
+  File tampering:
+      An attacker modifies ciphertext, salt, nonce, KDF parameters, or JSON
+      structure. Most tampering causes unlock failure. Header fields are not
+      bound as AES-GCM additional data; see Encryption.txt for exact details.
+
+  Weak master password:
+      An attacker performs offline guessing against a stolen vault. Argon2id
+      slows guessing, but weak passwords remain weak.
+
+  Clipboard exposure:
+      Copied passwords or entry fields are observed by clipboard history,
+      cloud clipboard sync, remote desktop software, accessibility tools, or
+      malware before PassMan clears the clipboard.
+
+  Backup mishandling:
+      vault.dat, vault.dat.bak, or manual backups are stored on unsafe media,
+      copied into cloud sync, or confused with outdated backups.
+
+  Release substitution:
+      An attacker replaces a release artifact, checksum file, or public key
+      before installation. Operators must verify hashes and PGP signatures
+      from a trusted release key.
+
+Out of scope:
+
+  - A compromised operating system before PassMan starts.
+  - Keyloggers.
+  - Malware with access to process memory.
+  - A malicious PyQt, cryptography, argon2-cffi, Python, or PyInstaller build.
+  - A malicious copy of PassMan.
+  - Firmware compromise or hardware implants.
+  - Screen cameras or observers.
+  - Coercion.
+  - An attacker who already knows the master password.
+
+For high-value credential storage, assume an ordinary daily-use online computer
+is a risky secret-handling environment.
+
+
+Secret Classes
+--------------
+
+Class A: vault-wide secrets
+
+  - master password
+  - decrypted vault JSON
+  - current in-memory VaultModel
+  - valid vault.dat plus known master password
+  - valid vault.dat.bak plus known master password
+
+Class B: account credentials
+
+  - website passwords
+  - wallet PINs
+  - drive recovery keys
+  - API tokens
+  - backup codes
+  - private notes containing secret material
+
+Class C: operationally sensitive data
+
+  - usernames
+  - email addresses
+  - entry names
+  - service names
+  - field names
+  - timestamps
+  - vault location paths
+
+Class D: release and repository trust material
+
+  - release artifacts
+  - SHA256SUMS
+  - SHA256SUMS.asc
+  - release public key
+  - repo-local GPG public keybox
+  - repo-local private signing key
+
+Class A and B must not be pasted into chat, email, issue trackers, cloud notes,
+or screenshots. Class C can still reveal account inventory and should be
+handled deliberately. Class D protects distribution integrity and must be kept
+under strict version-control discipline.
+
+
+Workstation Requirement
+-----------------------
+
+Recommended operating mode for sensitive use:
+
+  - trusted local machine
+  - current operating-system security updates
+  - encrypted local disk
+  - no untrusted browser extensions or clipboard managers
+  - no remote desktop session
+  - no active screen sharing
+  - no cloud clipboard sync
+  - no automated screenshot or screen-recording tools
+
+For high-value credential work, additionally consider:
+
+  - disconnecting networking while unlocking the vault
+  - using a dedicated user account
+  - closing unrelated applications
+  - disabling desktop search indexing on backup media
+  - avoiding hibernation while the vault is unlocked
+
+Network disconnection does not protect against malware already present on the
+host. It reduces remote exposure during the session.
+
+
+Recommended Session Procedure
+-----------------------------
+
+Before the session:
+
+  1. Verify the PassMan release artifact before installation.
+  2. Confirm the machine is trusted and physically private.
+  3. Disable clipboard managers and cloud clipboard sync where practical.
+  4. Close chat, browser, screen sharing, and remote desktop software.
+  5. Decide the exact task: add an entry, copy a password, change password,
+     create backup, or restore backup.
+
+During the session:
+
+  1. Unlock only when needed.
+  2. Search for the smallest set of entries needed for the task.
+  3. Copy only the specific field needed, not the entire entry, when possible.
+  4. Allow the clipboard clear timer to expire before switching contexts.
+  5. Do not leave the workstation unattended while unlocked.
+  6. Use Lock when finished, even if auto-lock is enabled.
+
+After the session:
+
+  1. Confirm the vault is locked or the app is closed.
+  2. Confirm copied secrets are no longer needed in the clipboard.
+  3. Move manual backups to controlled storage.
+  4. Remove temporary copies from Downloads, Desktop, and removable media.
+  5. For high-value work, reboot before returning to normal online activity.
+
+
+Master Password Handling
+------------------------
+
+The master password is a Class A secret.
+
+Operational requirements:
+
+  - Use a unique master password.
+  - Do not reuse an account password.
+  - Avoid names, dates, addresses, phone numbers, song lyrics, quotes, and
+    simple substitutions.
+  - Prefer a long random passphrase or high-entropy random string.
+  - Store any written recovery copy offline and physically protected.
+  - Do not store the master password next to vault.dat or vault.dat.bak.
+
+Important implementation detail:
+
+  PassMan encodes the master password with UTF-8 and does not normalize
+  Unicode. Visually similar Unicode strings can be different passwords.
+
+Consequences:
+
+  - Leading spaces are significant.
+  - Trailing spaces are significant.
+  - Newlines are significant.
+  - Case is significant.
+  - Precomposed and decomposed Unicode forms can differ.
+
+Losing the master password makes the vault unrecoverable unless another
+process, backup, or written copy preserves it. There is no backdoor.
+
+
+Vault File Handling
+-------------------
+
+The active vault file is encrypted, but it is still sensitive.
+
+Files to protect:
+
+  - vault.dat
+  - vault.dat.bak
+  - manual backup .dat files
+  - any copied vault file
+
+Operational requirements:
+
+  - Keep vault files on encrypted storage.
+  - Do not commit vault files to git.
+  - Do not attach vault files to support issues.
+  - Do not upload vault files to cloud storage unless the threat model accepts
+    offline password guessing risk.
+  - Keep at least one verified backup.
+  - Label backups with dates outside the encrypted file if needed, but avoid
+    putting account names or secrets in filenames.
+
+The filename does not prove a file is safe or current. Verify backup restore
+behavior before relying on a backup as the only recovery copy.
+
+
+Backup Discipline
+-----------------
+
+PassMan creates automatic vault.dat.bak files and supports manual encrypted
+backups.
+
+Automatic backup:
+
+  - Created during normal saves.
+  - Located next to the active vault.
+  - Contains the previous encrypted vault state.
+
+Manual backup:
+
+  - Created through Backup Manager.
+  - Copies encrypted vault.dat to a chosen location.
+  - Does not decrypt or export plaintext.
+
+Operational requirements:
+
+  - Store backups separately from the primary machine.
+  - Periodically verify that a backup can be unlocked.
+  - Protect backup media from loss and theft.
+  - Do not overwrite the only known-good backup without first creating another.
+  - Remember that an old backup may contain old passwords or deleted entries.
+
+Backups protect against data loss. They also increase the number of files an
+attacker can steal for offline guessing.
+
+
+Restore Discipline
+------------------
+
+Manual restore validates the chosen backup by unlocking it with the current
+in-memory password before replacing the active vault.
+
+Operational requirements:
+
+  - Restore only from backups whose origin is known.
+  - Do not restore arbitrary vault files received from other people.
+  - Confirm the selected path before approving restore.
+  - After restore, inspect entry count and recent entries.
+  - Create a fresh backup after confirming the restored vault is correct.
+
+If the current active vault is damaged, PassMan may offer to restore from
+vault.dat.bak when the backup unlocks successfully with the entered password.
+
+
+Clipboard Boundary
+------------------
+
+The clipboard is an explicit secret export.
+
+PassMan behavior:
+
+  - Copy operations write text to QApplication.clipboard().
+  - The clipboard clear timer defaults to 30 seconds.
+  - The timer can be changed in Settings.
+  - A value of 0 disables automatic clipboard clearing.
+
+Limitations:
+
+  - Clipboard managers can retain history.
+  - Cloud clipboard sync can copy secrets to other devices.
+  - Remote desktop tools can read clipboard data.
+  - Accessibility tools can observe copied text.
+  - Clearing the clipboard does not erase previous clipboard-manager records.
+  - Other processes may read the clipboard before the timer fires.
+
+Operational rules:
+
+  - Do not copy secrets while screen sharing or using remote desktop.
+  - Prefer copying a single field over copying an entire entry.
+  - Keep the clear timer enabled.
+  - Disable OS clipboard history for sensitive sessions.
+  - Treat copied text as exposed to the local desktop environment.
+
+
+Search and Display Boundary
+---------------------------
+
+Search text and visible results can reveal account inventory and secrets.
+
+PassMan search can match:
+
+  - entry name
+  - entry type
+  - field name
+  - field value
+  - notes
+  - created timestamp
+  - modified timestamp
+
+Operational consequences:
+
+  - Searching for a password fragment may display matching secret-bearing
+    entries.
+  - Search text may be visible in screenshots or screen recordings.
+  - Entry cards can show field values on screen depending on widget behavior.
+  - Notes can contain highly sensitive recovery material.
+
+Operational rules:
+
+  - Do not search for secret fragments while observed.
+  - Do not screen-share unlocked vault views.
+  - Avoid putting unnecessary secrets in entry names or field names.
+  - Use notes for recovery material only when you accept that notes decrypt and
+    display inside the same runtime boundary as passwords.
+
+
+Password Generator Boundary
+---------------------------
+
+Generated passwords are Class B secrets as soon as they appear.
+
+PassMan behavior:
+
+  - Uses Python secrets.choice for character selection.
+  - Uses secrets.SystemRandom().shuffle for character order.
+  - Supports length 8 through 128.
+  - Supports uppercase, lowercase, numbers, and symbols.
+  - Displays an entropy estimate.
+  - Can copy generated output to the clipboard.
+
+Operational rules:
+
+  - Generate passwords only on a trusted host.
+  - Save the generated password immediately into the intended entry or service.
+  - Do not leave generated passwords visible longer than needed.
+  - Do not copy generated passwords into chat, notes, or web forms other than
+    the intended service.
+  - Avoid short generated passwords unless a service enforces a low maximum.
+
+
+Auto-Lock Boundary
+------------------
+
+PassMan includes an activity-based auto-lock timer.
+
+Default:
+
+  auto_lock_seconds = 300
+
+Allowed settings:
+
+  0 through 3600 seconds
+
+Events that reset the timer:
+
+  - mouse button press
+  - key press
+  - mouse wheel
+
+At timeout:
+
+  - the main window requests vault lock
+  - the decrypted model is replaced with a new empty VaultModel
+  - the application returns to unlock/create flow
+
+Limitations:
+
+  - Auto-lock is not memory zeroization.
+  - Already copied clipboard values may remain elsewhere.
+  - Already displayed secrets may exist in compositor, GPU, accessibility, or
+    screen-recording state.
+  - A compromised process can read secrets before the timer fires.
+
+Operational rule:
+
+  Use Lock manually when finished. Treat auto-lock as a safety net, not a
+  primary control.
+
+
+Settings Boundary
+-----------------
+
+Vault settings are encrypted inside the vault model.
+
+Settings include:
+
+  - debug_enabled
+  - auto_lock_seconds
+  - clipboard_clear_seconds
+  - theme_name
+
+Frozen builds do not expose debug tools even if debug_enabled exists in the
+vault. Source builds can expose developer/test tools when debug mode is enabled.
+
+Operational rules:
+
+  - Keep debug tools disabled for real vaults.
+  - Do not open Developer JSON with a real vault while screen sharing.
+  - Do not copy decrypted JSON into bug reports or issue trackers.
+  - Keep clipboard auto-clear enabled.
+  - Keep auto-lock enabled unless there is a controlled reason not to.
+
+
+Developer JSON Boundary
+-----------------------
+
+In source/development mode, PassMan can display decrypted vault JSON for
+developer inspection.
+
+This view is plaintext secret material.
+
+Operational requirements:
+
+  - Do not use Developer JSON with production vaults unless necessary.
+  - Do not save screenshots of the Developer JSON window.
+  - Do not paste Developer JSON into logs, chat, or support requests.
+  - Use synthetic test vaults for debugging.
+
+Developer JSON is not available in frozen packaged builds because debug tools
+are disabled when sys.frozen is true.
+
+
+Host Filesystem Boundary
+------------------------
+
+PassMan protects vault contents cryptographically, but the host filesystem
+still matters.
+
+Risks:
+
+  - cloud sync copying vault files
+  - backup tools retaining old vault versions
+  - desktop search indexing filenames or paths
+  - filesystem snapshots retaining deleted backups
+  - unencrypted removable media
+  - malware watching the vault directory
+  - permissive file permissions on shared systems
+
+Operational rules:
+
+  - Store vaults and backups on encrypted disks.
+  - Avoid shared user accounts.
+  - Avoid syncing vault files unless you accept the risk.
+  - Do not store backups on unlabeled or unencrypted USB drives.
+  - Remember that deletion may not erase historical snapshots.
+
+
+Release Verification
+--------------------
+
+Before installing or running a release, verify both the checksum manifest and
+the artifact signature when available.
+
+PassMan release verification files:
+
+  dist/SHA256SUMS
+  dist/SHA256SUMS.asc
+  dist/PassMan-release-signing-public-key.asc
+  dist/*.asc
+
+Release signing key:
+
+  PassMan Release Signing (2026) <release@passman.local>
+  Fingerprint: 7858 E51C 98AD 2541 5098  9EF3 1F4D F0EB 1C80 C710
+
+Verification sequence:
+
+  1. Inspect the public key fingerprint:
+
+       gpg --show-keys dist/PassMan-release-signing-public-key.asc
+
+  2. Import the public key:
+
+       gpg --import dist/PassMan-release-signing-public-key.asc
+
+  3. Verify the checksum manifest:
+
+       gpg --verify dist/SHA256SUMS.asc dist/SHA256SUMS
+
+  4. Verify artifact checksums:
+
+       cd dist
+       shasum -a 256 -c SHA256SUMS
+
+  5. Optionally verify the artifact directly:
+
+       gpg --verify PassMan.exe.asc PassMan.exe
+
+PGP signatures provide release-integrity verification. They do not replace
+Windows Authenticode signing, Apple Developer ID signing, notarization, or
+Linux package repository signatures.
+
+
+Repo-Local Signing Key Boundary
+-------------------------------
+
+The repository contains a repo-local GPG home:
+
+  .gnupg-release/
+
+Private key material is intentionally ignored:
+
+  .gnupg-release/private-keys-v1.d/*.key
+
+Operational requirements:
+
+  - Do not commit private key files.
+  - Do not paste private key files into chat or issue trackers.
+  - Do not upload private key files to public releases.
+  - Restrict access to machines that can sign releases.
+  - Rotate the release key if private key material is exposed.
+  - Keep a controlled backup if continued signing with the same key is needed.
+
+The public key may be distributed. The private key signs releases and must be
+treated as a Class D secret.
+
+
+Platform-Specific Notes
+-----------------------
+
+Windows:
+
+  - PassMan.exe is PGP-signed as a release artifact.
+  - The executable is not Authenticode-signed unless separately documented.
+  - Windows may show an unknown-publisher warning.
+  - Verify SHA256SUMS and .asc signatures before first run.
+
+macOS:
+
+  - DMGs are PGP-signed as release artifacts.
+  - App bundles were ad-hoc signed during local packaging.
+  - The builds are not Apple Developer ID notarized unless separately
+    documented.
+  - Gatekeeper warnings are possible.
+  - Verify SHA256SUMS and .asc signatures before first run.
+
+Linux:
+
+  - The Linux x64 tarball and .deb are PGP-signed as release artifacts.
+  - The .deb is not part of a signed apt repository unless separately
+    documented.
+  - Frozen Linux builds store vault.dat under XDG_DATA_HOME/PassMan.
+  - Verify SHA256SUMS and .asc signatures before installation.
+
+
+Incident Response
+-----------------
+
+If a vault file is stolen but the master password is strong:
+
+  - Rotate the master password at the next trusted opportunity.
+  - Consider rotating high-value stored credentials.
+  - Review whether the same vault existed in cloud sync or backups.
+  - Preserve logs or filesystem metadata if investigation is needed.
+
+If the master password is exposed:
+
+  - Treat the vault as compromised.
+  - Change passwords for every stored account, prioritizing email, financial,
+    cloud, identity, and recovery accounts.
+  - Create a new vault or change the master password after account rotation.
+  - Retire old backups encrypted under the exposed password where practical.
+
+If a release private key is exposed:
+
+  - Stop using the exposed key.
+  - Generate a new release signing key.
+  - Publish a key-rotation notice.
+  - Re-sign current release artifacts with the new key.
+  - Remove the exposed private key from every accessible location.
+
+If a malicious release is suspected:
+
+  - Do not run the artifact.
+  - Compare SHA-256 against docs or release manifest.
+  - Verify PGP signatures.
+  - Rebuild from trusted source if necessary.
+  - Rotate credentials if the malicious artifact was executed while the vault
+    was unlocked.
+
+
+Operational Checklist
+---------------------
+
+Before first use:
+
+  - Verify release signatures.
+  - Choose a strong unique master password.
+  - Disable clipboard history where practical.
+  - Decide where vault.dat and backups will live.
+
+Daily use:
+
+  - Unlock only when needed.
+  - Copy only the needed field.
+  - Lock after use.
+  - Avoid screen sharing while unlocked.
+
+Backup:
+
+  - Create encrypted manual backups.
+  - Store backups separately.
+  - Verify backups unlock.
+  - Protect backup media.
+
+Maintenance:
+
+  - Keep PassMan releases verified.
+  - Keep the operating system patched.
+  - Rotate stored account passwords after suspected exposure.
+  - Review old backups before disposing of storage.
+
+
+Limitations Summary
+-------------------
+
+PassMan's encryption protects vault files at rest. It does not make an
+untrusted computer safe.
+
+Do not rely on PassMan to protect secrets from:
+
+  - malware
+  - keyloggers
+  - screen capture
+  - clipboard managers
+  - memory forensics
+  - hostile builds
+  - weak master passwords
+  - careless backup handling
+  - release artifacts that were not verified before use
+
+The strongest operational control is still simple:
+
+  Use a trusted machine, verify what you run, keep the vault locked when not in
+  use, and protect backups as carefully as the active vault.
