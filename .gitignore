@@ -1,0 +1,23 @@
+# macOS metadata
+.DS_Store
+._*
+
+# Python caches and environments
+__pycache__/
+*.py[cod]
+.venv/
+.venv-*/
+
+# Build and release outputs
+build/
+dist/
+release/
+assets/
+*.log
+
+# Local encrypted vault data
+vault.dat
+vault.dat.*
+
+# Repo-local GPG release keyring: keep private/volatile material out of git.
+.gnupg-release/
