@@ -116,7 +116,10 @@ release/v1.0.0/
   windows/               Windows executable, signature, and checksum manifest
   macos/                 Intel, Apple Silicon, and universal DMGs with signatures
   linux/                 tar.gz and deb packages with signatures
-  signing/               Public signing key plus the original aggregate checksum files
+docs/
+  PassMan_Release_Signing_2026_pubkey.asc
+  SHA256SUMS             Aggregate checksum manifest for all release artifacts
+  SHA256SUMS.asc         Detached signature for the aggregate checksum manifest
 ```
 
 ## Verify Releases
@@ -126,13 +129,13 @@ Release artifacts are signed with detached GPG signatures and listed in `SHA256S
 Public key:
 
 ```text
-release/v1.0.0/signing/PassMan-release-signing-public-key.asc
+docs/PassMan_Release_Signing_2026_pubkey.asc
 ```
 
 Import the public key:
 
 ```bash
-gpg --import release/v1.0.0/signing/PassMan-release-signing-public-key.asc
+gpg --import docs/PassMan_Release_Signing_2026_pubkey.asc
 ```
 
 Verify checksums from the OS-specific release folder:
@@ -148,10 +151,10 @@ Verify a detached signature:
 gpg --verify PassMan-linux-x64.tar.gz.asc PassMan-linux-x64.tar.gz
 ```
 
-The original aggregate checksum file and detached signature are kept under `release/v1.0.0/signing/`:
+The aggregate checksum file and detached signature are kept under `docs/`:
 
 ```bash
-gpg --verify release/v1.0.0/signing/SHA256SUMS.asc release/v1.0.0/signing/SHA256SUMS
+gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
 ```
 
 ## Release Signing Key
