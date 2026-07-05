@@ -3,11 +3,16 @@
 from src.version import APP_NAME, APP_VERSION
 
 
+ASSETS_DIR = 'assets'
+APP_ICON_PNG = f'{ASSETS_DIR}/passman_icon.png'
+MAC_ICON = f'{ASSETS_DIR}/icns/mac/PassMan.icns'
+
+
 a = Analysis(
     ['src/main.py'],
     pathex=['src'],
     binaries=[],
-    datas=[('src/assets/passman_icon.png', 'assets')],
+    datas=[(APP_ICON_PNG, 'assets')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -34,7 +39,7 @@ exe = EXE(
     target_arch='arm64',
     codesign_identity=None,
     entitlements_file=None,
-    icon=['src/assets/macos/passman_icon.icns'],
+    icon=[MAC_ICON],
 )
 coll = COLLECT(
     exe,
@@ -48,7 +53,7 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name=f'{APP_NAME}.app',
-    icon='src/assets/macos/passman_icon.icns',
+    icon=MAC_ICON,
     bundle_identifier=None,
     info_plist={
         'CFBundleName': APP_NAME,
