@@ -45,18 +45,20 @@ Release Artifacts
 
 The v1.0.0 Linux release set currently contains amd64/x86-64 artifacts only:
 
-  dist/PassMan-linux-x64.tar.gz
-  dist/PassMan-linux-x64.deb
+  release/v1.0.0/linux/PassMan-linux-x64.tar.gz
+  release/v1.0.0/linux/PassMan-linux-x64.deb
 
 Each Linux artifact has a detached ASCII-armored OpenPGP signature:
 
-  dist/PassMan-linux-x64.tar.gz.asc
-  dist/PassMan-linux-x64.deb.asc
+  release/v1.0.0/linux/PassMan-linux-x64.tar.gz.asc
+  release/v1.0.0/linux/PassMan-linux-x64.deb.asc
 
-The release also includes the signed checksum manifest:
+The release also includes OS-specific checksum manifests and a signed aggregate
+checksum manifest:
 
-  dist/SHA256SUMS
-  dist/SHA256SUMS.asc
+  release/v1.0.0/linux/SHA256SUMS
+  docs/SHA256SUMS
+  docs/SHA256SUMS.asc
 
 No Linux arm64/aarch64 package was produced for this release.
 
@@ -72,7 +74,7 @@ Verified Artifact Metadata
 
 The compressed standalone artifact was verified as:
 
-  dist/PassMan-linux-x64.tar.gz
+  release/v1.0.0/linux/PassMan-linux-x64.tar.gz
   gzip compressed data
   last modified: Fri Jul 3 18:23:46 2026
   uncompressed tar stream size modulo 2^32: 204477440 bytes
@@ -91,7 +93,7 @@ The executable inside the tarball was verified as:
 
 The Debian package was verified as:
 
-  dist/PassMan-linux-x64.deb
+  release/v1.0.0/linux/PassMan-linux-x64.deb
   Debian binary package format 2.0
   control archive: control.tar.xz
   data archive: data.tar.xz
@@ -131,23 +133,23 @@ release. Verify SHA-256 and OpenPGP signatures before installation.
 SHA-256 Verification
 --------------------
 
-The Linux artifact hashes are recorded in dist/SHA256SUMS:
+The Linux artifact hashes are recorded in release/v1.0.0/linux/SHA256SUMS:
 
-  23fe24e3c6c3ea694426dd1499fcb4e07796c8622bfc9d4a9cb7138ffd8de119  PassMan-linux-x64.tar.gz
-  d4cf2b7f50f7420713f5c0c7bbd44d05de6a28286c825241f530aacf5d246c9b  PassMan-linux-x64.deb
+  d77f509fd08858b99f1e2fc30815dc9fcf7dbc08fb8b93b331f0b64a35b5ad41  PassMan-linux-x64.tar.gz
+  7161cb47a626384536c18d17ebfff78b0553decb976a024ad9d151239f10a07e  PassMan-linux-x64.deb
 
 Verify from the release directory with:
 
-  cd dist
+  cd release/v1.0.0/linux
   shasum -a 256 -c SHA256SUMS
 
 or on systems using GNU coreutils:
 
-  cd dist
+  cd release/v1.0.0/linux
   sha256sum -c SHA256SUMS
 
-Compare the output byte-for-byte against dist/SHA256SUMS before installing or
-opening an existing password vault.
+Compare the output byte-for-byte against release/v1.0.0/linux/SHA256SUMS
+before installing or opening an existing password vault.
 
 
 OpenPGP Signature Verification
@@ -158,7 +160,7 @@ signing key.
 
 Public key file:
 
-  dist/PassMan-release-signing-public-key.asc
+  docs/PassMan_Release_Signing_2026_pubkey.asc
 
 Release signing identity:
 
@@ -170,16 +172,16 @@ Fingerprint:
 
 Import the public key:
 
-  gpg --import dist/PassMan-release-signing-public-key.asc
+  gpg --import docs/PassMan_Release_Signing_2026_pubkey.asc
 
 Verify the checksum manifest:
 
-  gpg --verify dist/SHA256SUMS.asc dist/SHA256SUMS
+  gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
 
 Verify the Linux artifacts:
 
-  gpg --verify dist/PassMan-linux-x64.tar.gz.asc dist/PassMan-linux-x64.tar.gz
-  gpg --verify dist/PassMan-linux-x64.deb.asc dist/PassMan-linux-x64.deb
+  gpg --verify release/v1.0.0/linux/PassMan-linux-x64.tar.gz.asc release/v1.0.0/linux/PassMan-linux-x64.tar.gz
+  gpg --verify release/v1.0.0/linux/PassMan-linux-x64.deb.asc release/v1.0.0/linux/PassMan-linux-x64.deb
 
 Hash verification proves that the downloaded bytes match the published digest.
 OpenPGP verification proves that the digest or artifact was signed by the
@@ -191,11 +193,11 @@ Debian or Ubuntu Installation
 
 Install the .deb package with:
 
-  sudo apt install ./dist/PassMan-linux-x64.deb
+  sudo apt install ./release/v1.0.0/linux/PassMan-linux-x64.deb
 
 or:
 
-  sudo dpkg -i ./dist/PassMan-linux-x64.deb
+  sudo dpkg -i ./release/v1.0.0/linux/PassMan-linux-x64.deb
   sudo apt -f install
 
 The installed command is:
@@ -228,7 +230,7 @@ Standalone Tarball Use
 The tarball can be unpacked and run directly on compatible x86-64 Linux
 systems:
 
-  tar -xzf dist/PassMan-linux-x64.tar.gz
+  tar -xzf release/v1.0.0/linux/PassMan-linux-x64.tar.gz
   cd PassMan
   ./PassMan
 
