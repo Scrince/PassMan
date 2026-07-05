@@ -10,8 +10,9 @@ from src.version import APP_NAME, APP_VERSION
 ROOT = Path(__file__).resolve().parent
 ENTRY = ROOT / "src" / "main.py"
 SOURCE_DIR = ROOT / "src"
-ICON_FILE = SOURCE_DIR / "assets" / "passman_icon.ico"
-ICON_PNG = SOURCE_DIR / "assets" / "passman_icon.png"
+ASSETS_DIR = ROOT / "assets"
+ICON_FILE = ASSETS_DIR / "passman_icon.ico"
+ICON_PNG = ASSETS_DIR / "passman_icon.png"
 
 
 def main() -> int:
