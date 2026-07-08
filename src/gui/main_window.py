@@ -500,7 +500,7 @@ class MainWindow(QMainWindow):
         self.refresh_entries()
         self.reset_auto_lock_timer()
 
-    def eventFilter(self, obj, event) -> bool:  # noqa: N802
+    def eventFilter(self, obj, event) -> bool:
         if event.type() in {
             QEvent.Type.MouseButtonPress,
             QEvent.Type.KeyPress,
@@ -690,7 +690,7 @@ class MainWindow(QMainWindow):
                 test.save()
                 test.unlock("test-pass")
                 assert test.model.entries[0].fields["secret"] == "ok"
-        except Exception as exc:  # pragma: no cover - debug utility
+        except Exception as exc:
             QMessageBox.critical(self, "Crypto test failed", str(exc))
             return
         QMessageBox.information(self, "Crypto test", "Encryption/decryption test passed.")
@@ -705,7 +705,7 @@ class MainWindow(QMainWindow):
                 test.change_password("old-pass", "new-pass")
                 test.unlock("new-pass")
                 assert test.model.entries[0].name == "Password Test"
-        except Exception as exc:  # pragma: no cover - debug utility
+        except Exception as exc:
             QMessageBox.critical(self, "Password test failed", str(exc))
             return
         QMessageBox.information(self, "Password test", "Password change test passed.")
