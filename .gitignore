@@ -21,3 +21,9 @@ vault.dat.*
 
 # Repo-local GPG release keyring: keep private/volatile material out of git.
 .gnupg-release/
+
+# Private keys and certificate bundles
+*.key
+*.pem
+*.pfx
+*.p12
