@@ -9,7 +9,7 @@ from tempfile import NamedTemporaryFile
 from typing import Any
 
 from .encryption import ALGORITHM, DecryptionError, decrypt_json_bytes, encrypt_json_bytes, new_nonce
-from .key_derivation import DEFAULT_KDF_PARAMS, derive_key
+from .key_derivation import DEFAULT_KDF_PARAMS, KDFParameterError, derive_key
 from models.vault_model import VaultModel
 
 
@@ -94,6 +94,10 @@ class Vault:
             payload = raw.get("payload")
             if not isinstance(header, dict) or not isinstance(payload, str):
                 raise VaultFormatError("Vault file is missing header or payload.")
+            if header.get("version") != VAULT_VERSION:
+                raise VaultFormatError("Vault version is not supported.")
+            if header.get("algorithm") != ALGORITHM:
+                raise VaultFormatError("Vault encryption algorithm is not supported.")
             salt = _unb64(str(header["salt"]))
             nonce = _unb64(str(header["nonce"]))
             kdf = dict(header["kdf"])
@@ -105,6 +109,8 @@ class Vault:
             raise InvalidPasswordError("Incorrect password or corrupted vault.") from exc
         except VaultFormatError:
             raise
+        except KDFParameterError as exc:
+            raise VaultFormatError(str(exc)) from exc
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise VaultFormatError("Vault file is malformed.") from exc
         self.model = VaultModel.from_json_dict(data)
