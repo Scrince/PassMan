@@ -23,7 +23,7 @@ def app_dir() -> Path:
 def bundled_dir() -> Path:
     """Find bundled assets whether we are frozen by PyInstaller or running from source."""
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        return Path(sys._MEIPASS)  # type: ignore[attr-defined]
+        return Path(sys._MEIPASS)
     return Path(__file__).resolve().parents[2]
 
 
