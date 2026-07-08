@@ -124,7 +124,7 @@ class SettingsWindow(QDialog):
         lock.clicked.connect(self._lock_and_close)
         close.clicked.connect(self._save_and_close)
 
-    def closeEvent(self, event) -> None:  # noqa: N802
+    def closeEvent(self, event) -> None:
         self._save_and_close()
         event.accept()
 
