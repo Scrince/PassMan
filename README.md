@@ -118,6 +118,7 @@ release/v1.0.0/
   linux/                 tar.gz and deb packages with signatures
 docs/
   PassMan_Release_Signing_2026_pubkey.asc
+  PassMan_Local_Code_Signing_2026.cer
   SHA256SUMS             Aggregate checksum manifest for all release artifacts
   SHA256SUMS.asc         Detached signature for the aggregate checksum manifest
 ```
@@ -156,6 +157,26 @@ The aggregate checksum file and detached signature are kept under `docs/`:
 ```bash
 gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
 ```
+
+## Local Code-Signing Certificate
+
+PassMan includes a public self-signed code-signing certificate for local Windows Authenticode verification experiments:
+
+```text
+docs/PassMan_Local_Code_Signing_2026.cer
+```
+
+Certificate summary:
+
+```text
+Subject: CN=PassMan Local Code Signing
+Thumbprint: 554A90C89385DD8C72D2341FF28BE155F3FC511A
+Algorithm: RSA 3072-bit, SHA-256
+Enhanced key usage: Code Signing
+Valid: 2026-07-04 to 2028-07-04
+```
+
+This certificate is self-signed and local-only. It is not a replacement for a publicly trusted Windows publisher certificate.
 
 ## Release Signing Key
 
