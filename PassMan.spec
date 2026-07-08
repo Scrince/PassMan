@@ -1,5 +1,3 @@
-# -*- mode: python ; coding: utf-8 -*-
-
 from src.version import APP_NAME, APP_VERSION
 
 
@@ -36,7 +34,7 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch='arm64',
+    target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
     icon=[MAC_ICON],
