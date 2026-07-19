@@ -22,6 +22,12 @@ class ClipboardManager:
             self._pending_text = None
 
     def clear(self) -> None:
+        """Clear the clipboard if it still holds text we copied (timer expiry)."""
         if self._pending_text is not None and self._app.clipboard().text() == self._pending_text:
             self._app.clipboard().clear()
+        self._timer.stop()
         self._pending_text = None
+
+    def flush(self) -> None:
+        """Stop the clear timer and remove any PassMan-copied text (e.g. on lock)."""
+        self.clear()

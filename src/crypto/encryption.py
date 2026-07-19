@@ -11,7 +11,8 @@ NONCE_SIZE = 12
 
 
 class DecryptionError(Exception):
-    """The vault data did not decrypt cleanly, so treat it as unsafe to open."""
+    pass
+                                                                                
 
 
 def new_nonce() -> bytes:

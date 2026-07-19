@@ -17,6 +17,8 @@ Release history is tracked in `CHANGELOG.md`.
 - Private notes per entry
 - Search by entry name, type, field name, field value, notes, or timestamps
 - Sort by name, created date, or modified date
+- Project Keys mode for C/S/E/A GPG `.key` files plus a project public `.asc` half
+- Authenticator mode for TOTP/HOTP codes with `otpauth://` import
 - Password generator with configurable length and character sets
 - Clipboard copy with automatic clear timer
 - Auto-lock timer
@@ -52,7 +54,13 @@ If `XDG_DATA_HOME` is not set, the default is:
 ~/.local/share/PassMan/vault.dat
 ```
 
-On macOS and Windows packaged builds, the app uses the executable folder.
+On macOS packaged builds:
+
+```text
+~/Library/Application Support/PassMan/vault.dat
+```
+
+On Windows packaged builds, the app uses the executable folder.
 
 If no `vault.dat` exists at the usual location on startup, PassMan offers to load an existing
 `vault.dat` or `vault.dat.bak` from another folder. When an existing vault is selected, future
@@ -76,13 +84,37 @@ python src/main.py
 
 ## Build
 
-PassMan uses PyInstaller for packaging.
+PassMan uses PyInstaller. Run packaging **on the target OS** (no cross-compile from Windows to Linux/macOS).
 
 ```bash
-python build.py
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python build.py                    # auto-detects host platform
 ```
 
-The current `build.py` script packages the default Windows-style single-file build. macOS and Linux release builds were produced with PyInstaller commands tailored for each platform and are emitted under `dist/`.
+Platform-specific examples:
+
+```bash
+# Linux (on a Linux machine) → tar.gz + .deb under dist/ and release/v*/
+python build.py --platform linux
+
+# macOS native arch → .app + .dmg
+python build.py --platform macos
+
+# macOS Apple Silicon / Intel / universal2
+python build.py --platform macos --arch arm64
+python build.py --platform macos --arch x86_64
+python build.py --platform macos --arch universal2
+
+# Windows → single-file .exe
+python build.py --platform windows
+
+# PyInstaller only (skip tar/deb/dmg packaging)
+python build.py --skip-package
+```
+
+Full prerequisites, library notes, signing, and troubleshooting: `docs/Build.txt`.
 
 Generated build and release outputs are intentionally ignored by git:
 
@@ -121,11 +153,16 @@ docs/
   PassMan_Local_Code_Signing_2026.cer
   SHA256SUMS             Aggregate checksum manifest for all release artifacts
   SHA256SUMS.asc         Detached signature for the aggregate checksum manifest
+  LinuxRelease.txt       Linux package verification notes
+  MacOSRelease.txt       macOS DMG verification notes
+  Build.txt              Packaging + re-signing procedure
 ```
 
 ## Verify Releases
 
-Release artifacts are signed with detached GPG signatures and listed in `SHA256SUMS`.
+Every packaged application (Linux tar.gz/deb, macOS DMGs, Windows exe) ships
+with a detached OpenPGP signature (`.asc`) from the PassMan release-signing
+key and is listed in a per-OS `SHA256SUMS` plus the aggregate `docs/SHA256SUMS`.
 
 Public key:
 
@@ -139,24 +176,26 @@ Import the public key:
 gpg --import docs/PassMan_Release_Signing_2026_pubkey.asc
 ```
 
-Verify checksums from the OS-specific release folder:
-
-```bash
-cd release/v1.0.0/linux
-shasum -a 256 -c SHA256SUMS
-```
-
-Verify a detached signature:
-
-```bash
-gpg --verify PassMan-linux-x64.tar.gz.asc PassMan-linux-x64.tar.gz
-```
-
-The aggregate checksum file and detached signature are kept under `docs/`:
+Verify the aggregate manifest, then an OS folder:
 
 ```bash
 gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
+
+cd release/v1.0.0/linux    # or macos / windows
+shasum -a 256 -c SHA256SUMS
 ```
+
+Verify a detached package signature:
+
+```bash
+gpg --verify PassMan-linux-x64.tar.gz.asc PassMan-linux-x64.tar.gz
+gpg --verify PassMan-macOS-universal.dmg.asc PassMan-macOS-universal.dmg
+gpg --verify PassMan.exe.asc PassMan.exe
+```
+
+How to re-sign after a rebuild is documented in `docs/Build.txt` (Release
+signing). Platform notes: `docs/LinuxRelease.txt`, `docs/MacOSRelease.txt`,
+and `docs/OpSec.txt`.
 
 ## Local Code-Signing Certificate
 
@@ -170,10 +209,10 @@ Certificate summary:
 
 ```text
 Subject: CN=PassMan Local Code Signing
-Thumbprint: 554A90C89385DD8C72D2341FF28BE155F3FC511A
+Thumbprint: 3BB73D97DCE4216AF3DB571442D8DC7A773FBC71
 Algorithm: RSA 3072-bit, SHA-256
 Enhanced key usage: Code Signing
-Valid: 2026-07-04 to 2028-07-04
+Valid: 2026-07-16 to 9999-12-30 (practical non-expiry)
 ```
 
 This certificate is self-signed and local-only. It is not a replacement for a publicly trusted Windows publisher certificate.
@@ -207,12 +246,13 @@ src/
   main.py                 App entry point
   crypto/                 Encryption, KDF, vault read/write logic
   gui/                    PyQt6 windows and widgets
-  models/                 Vault and entry data models
+  models/                 Vault, entry, and project-key data models
   utils/                  File paths, clipboard handling, themes
   assets/                 App icons and platform-specific icon assets
-build.py                  Convenience PyInstaller build script
+build.py                  Cross-platform PyInstaller packaging script
 requirements.txt          Python dependencies
-PassMan.spec              PyInstaller spec
+PassMan.spec              Portable PyInstaller spec (macOS .app + onedir)
+docs/Build.txt            Linux/macOS/Windows build instructions
 ```
 
 ## Git Hygiene

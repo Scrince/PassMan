@@ -9,7 +9,7 @@ from tempfile import NamedTemporaryFile
 from typing import Any
 
 from .encryption import ALGORITHM, DecryptionError, decrypt_json_bytes, encrypt_json_bytes, new_nonce
-from .key_derivation import DEFAULT_KDF_PARAMS, KDFParameterError, derive_key
+from .key_derivation import DEFAULT_KDF_PARAMS, derive_key, sanitize_kdf_params
 from models.vault_model import VaultModel
 
 
@@ -17,15 +17,15 @@ VAULT_VERSION = 1
 
 
 class VaultError(Exception):
-    """Common parent for problems that come from vault handling."""
+    pass
 
 
 class InvalidPasswordError(VaultError):
-    """The password did not unlock this vault."""
+    pass
 
 
 class VaultFormatError(VaultError):
-    """The vault file is missing pieces or is not shaped like a PassMan vault."""
+    pass
 
 
 def _b64(data: bytes) -> str:
@@ -34,6 +34,13 @@ def _b64(data: bytes) -> str:
 
 def _unb64(data: str) -> bytes:
     return base64.b64decode(data.encode("ascii"), validate=True)
+
+
+def _secure_chmod(path: Path, mode: int = 0o600) -> None:
+    try:
+        os.chmod(path, mode)
+    except OSError:
+        pass
 
 
 class Vault:
@@ -64,6 +71,7 @@ class Vault:
             corrupt_path = self.path.with_name(f"{self.path.name}.corrupt")
             shutil.copy2(self.path, corrupt_path)
         shutil.copy2(self.backup_path, self.path)
+        _secure_chmod(self.path, 0o600)
 
     def restore_from_file(self, backup_path: Path) -> None:
         if self._password is None:
@@ -77,10 +85,14 @@ class Vault:
         backup_vault.unlock(self._password)
         if self.path.exists() and not restoring_internal_backup:
             shutil.copy2(self.path, self.backup_path)
+            _secure_chmod(self.backup_path, 0o600)
         shutil.copy2(backup_path, self.path)
+        _secure_chmod(self.path, 0o600)
         self.unlock(self._password)
 
     def create(self, password: str) -> None:
+        if not password:
+            raise VaultError("Password cannot be empty.")
         self.model = VaultModel()
         self._password = password
         self.save()
@@ -94,13 +106,10 @@ class Vault:
             payload = raw.get("payload")
             if not isinstance(header, dict) or not isinstance(payload, str):
                 raise VaultFormatError("Vault file is missing header or payload.")
-            if header.get("version") != VAULT_VERSION:
-                raise VaultFormatError("Vault version is not supported.")
-            if header.get("algorithm") != ALGORITHM:
-                raise VaultFormatError("Vault encryption algorithm is not supported.")
             salt = _unb64(str(header["salt"]))
             nonce = _unb64(str(header["nonce"]))
-            kdf = dict(header["kdf"])
+            raw_kdf = header.get("kdf")
+            kdf = sanitize_kdf_params(raw_kdf if isinstance(raw_kdf, dict) else None)
             ciphertext = _unb64(payload)
             key = derive_key(password, salt, kdf)
             plaintext = decrypt_json_bytes(ciphertext, key, nonce)
@@ -109,8 +118,6 @@ class Vault:
             raise InvalidPasswordError("Incorrect password or corrupted vault.") from exc
         except VaultFormatError:
             raise
-        except KDFParameterError as exc:
-            raise VaultFormatError(str(exc)) from exc
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise VaultFormatError("Vault file is malformed.") from exc
         self.model = VaultModel.from_json_dict(data)
@@ -127,14 +134,25 @@ class Vault:
         self._write_encrypted(self.model, self._password)
 
     def change_password(self, old_password: str, new_password: str) -> None:
-        self.unlock(old_password)
+        """
+        Re-key the vault using the current in-memory model.
+
+        Does not call unlock() (which would reload from disk and discard unsaved edits).
+        """
+        if self._password is None:
+            raise VaultError("Vault is locked.")
+        if not old_password or old_password != self._password:
+            raise InvalidPasswordError("Incorrect password or corrupted vault.")
+        if not new_password:
+            raise VaultError("Password cannot be empty.")
+        # Keep live model; only re-encrypt with the new master password.
         self._write_encrypted(self.model, new_password)
         self._password = new_password
 
     def _write_encrypted(self, model: VaultModel, password: str) -> None:
         salt = os.urandom(16)
         nonce = new_nonce()
-        kdf = dict(DEFAULT_KDF_PARAMS)
+        kdf = sanitize_kdf_params(DEFAULT_KDF_PARAMS)
         key = derive_key(password, salt, kdf)
         plaintext = json.dumps(model.to_json_dict(), indent=2, sort_keys=True).encode("utf-8")
         ciphertext = encrypt_json_bytes(plaintext, key, nonce)
@@ -148,7 +166,11 @@ class Vault:
             },
             "payload": _b64(ciphertext),
         }
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            _secure_chmod(self.path.parent, 0o700)
+        except OSError:
+            pass
         serialized = json.dumps(document, indent=2, sort_keys=True)
         with NamedTemporaryFile("w", encoding="utf-8", dir=self.path.parent, delete=False) as tmp:
             tmp.write(serialized)
@@ -156,13 +178,17 @@ class Vault:
             os.fsync(tmp.fileno())
             temp_name = tmp.name
         temp_path = Path(temp_name)
+        _secure_chmod(temp_path, 0o600)
         had_existing_vault = self.path.exists()
         try:
             if had_existing_vault:
                 shutil.copy2(self.path, self.backup_path)
+                _secure_chmod(self.backup_path, 0o600)
             temp_path.replace(self.path)
+            _secure_chmod(self.path, 0o600)
             if not had_existing_vault:
                 shutil.copy2(self.path, self.backup_path)
+                _secure_chmod(self.backup_path, 0o600)
         except Exception:
             temp_path.unlink(missing_ok=True)
             raise

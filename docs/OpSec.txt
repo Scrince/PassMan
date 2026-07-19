@@ -19,6 +19,8 @@ Current security-relevant implementation behavior:
   - Manual restore validates the selected backup with the current password
     before replacing the active vault.
   - Frozen Linux builds store vault.dat under XDG_DATA_HOME/PassMan.
+  - Frozen macOS builds store vault.dat under
+    ~/Library/Application Support/PassMan.
 
 Encryption.txt defines the cryptographic file format. This document defines
 how an operator should handle the application, vault files, backups, release
@@ -138,6 +140,10 @@ Class B: account credentials
   - API tokens
   - backup codes
   - private notes containing secret material
+  - GPG .key files (C/S/E/A) stored under Project Keys
+  - Project public .asc halves stored under Project Keys
+  - GPG passphrases if written into project or key notes
+  - Authenticator TOTP/HOTP secrets and one-time codes
 
 Class C: operationally sensitive data
 
@@ -595,23 +601,30 @@ Platform-Specific Notes
 
 Windows:
 
-  - PassMan.exe is PGP-signed as a release artifact.
+  - PassMan.exe is PGP-signed as a release artifact (PassMan.exe.asc).
   - The executable is not Authenticode-signed unless separately documented.
   - Windows may show an unknown-publisher warning.
+  - Do not treat vault.dat or vault.dat.bak beside the exe as signed
+    release packages; only the application binary is in SHA256SUMS.
   - Verify SHA256SUMS and .asc signatures before first run.
 
 macOS:
 
-  - DMGs are PGP-signed as release artifacts.
-  - App bundles were ad-hoc signed during local packaging.
+  - All three DMGs (arm64, x64, universal) are PGP-signed as release
+    artifacts; see docs/MacOSRelease.txt for hashes and verification.
+  - App bundles may be ad-hoc codesigned during local packaging; build.py does
+    not perform Developer ID signing or notarization.
   - The builds are not Apple Developer ID notarized unless separately
     documented.
   - Gatekeeper warnings are possible.
+  - Frozen macOS builds store vault.dat under
+    ~/Library/Application Support/PassMan.
   - Verify SHA256SUMS and .asc signatures before first run.
 
 Linux:
 
-  - The Linux x64 tarball and .deb are PGP-signed as release artifacts.
+  - The Linux x64 tarball and .deb are PGP-signed as release artifacts;
+    see docs/LinuxRelease.txt for hashes and verification.
   - The .deb is not part of a signed apt repository unless separately
     documented.
   - Frozen Linux builds store vault.dat under XDG_DATA_HOME/PassMan.

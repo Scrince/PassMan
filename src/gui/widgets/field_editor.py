@@ -40,8 +40,8 @@ class FieldEditor(QWidget):
             return
         self.value_edit.setEchoMode(QLineEdit.EchoMode.Normal)
 
-    def value(self) -> tuple[str, str, str]:
-        return self.name_edit.text().strip(), self.value_edit.text(), self.field_type()
+    def value(self) -> tuple[str, str]:
+        return self.name_edit.text().strip(), self.value_edit.text()
 
     def field_type(self) -> str:
         return str(self.type_combo.currentData())

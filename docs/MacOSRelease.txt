@@ -1,0 +1,120 @@
+PassMan v1.0.0 - macOS Release Notes
+====================================
+
+Release status
+--------------
+
+This file records the prepared v1.0.0 macOS artifacts, OpenPGP signatures,
+checksums, and packaging notes.
+
+PassMan v1.0.0 is the current application release line recorded in:
+
+  src/version.py
+
+This document is macOS-specific. Encryption and operational security are
+specified in:
+
+  docs/Encryption.txt
+  docs/OpSec.txt
+
+Cross-platform packaging and re-signing steps:
+
+  docs/Build.txt
+
+
+Scope
+-----
+
+The macOS release packages the Python/PyQt6 application as a .app bundle
+inside a compressed DMG. The vault format is unchanged. Frozen builds store
+the vault at:
+
+  ~/Library/Application Support/PassMan/vault.dat
+
+with automatic backup:
+
+  vault.dat.bak
+
+
+Release Artifacts
+-----------------
+
+  release/v1.0.0/macos/PassMan-macOS-arm64.dmg
+  release/v1.0.0/macos/PassMan-macOS-x64.dmg
+  release/v1.0.0/macos/PassMan-macOS-universal.dmg
+
+Each DMG has a detached ASCII-armored OpenPGP signature:
+
+  release/v1.0.0/macos/PassMan-macOS-arm64.dmg.asc
+  release/v1.0.0/macos/PassMan-macOS-x64.dmg.asc
+  release/v1.0.0/macos/PassMan-macOS-universal.dmg.asc
+
+Checksum manifests:
+
+  release/v1.0.0/macos/SHA256SUMS
+  release/v1.0.0/macos/SHA256SUMS.asc
+  docs/SHA256SUMS
+  docs/SHA256SUMS.asc
+
+Architecture notes:
+
+  - arm64: Apple Silicon native
+  - x64: Intel (x86_64)
+  - universal: lipo-merged arm64 + x86_64 (fat Mach-O)
+
+
+SHA-256 Verification
+--------------------
+
+Hashes recorded in release/v1.0.0/macos/SHA256SUMS:
+
+  fe6aa21fddc6da8f4d627ed0b120794965554d12766f06985597dd65393a176b  PassMan-macOS-arm64.dmg
+  b61a100b232bb0cdab9a59b2d33bbe0bc5401af625675cf577c018c3da73fad3  PassMan-macOS-x64.dmg
+  02456da0bc4db57639e4aa8a2cac3e60503b7ce03026c6b8cf2c18bf5ba23b05  PassMan-macOS-universal.dmg
+
+Verify:
+
+  cd release/v1.0.0/macos
+  shasum -a 256 -c SHA256SUMS
+
+
+OpenPGP Signature Verification
+------------------------------
+
+Public key:
+
+  docs/PassMan_Release_Signing_2026_pubkey.asc
+
+Identity:
+
+  PassMan Release Signing (2026) <release@passman.local>
+  Fingerprint: 7858 E51C 98AD 2541 5098  9EF3 1F4D F0EB 1C80 C710
+
+Import and verify:
+
+  gpg --import docs/PassMan_Release_Signing_2026_pubkey.asc
+  gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
+  gpg --verify release/v1.0.0/macos/PassMan-macOS-universal.dmg.asc \
+               release/v1.0.0/macos/PassMan-macOS-universal.dmg
+
+
+Code Signing vs Release Signing
+-------------------------------
+
+  - OpenPGP (.asc) signatures prove the DMG bytes match what the release key
+    holder published. Verify them before install.
+  - Apple code signing is separate. These DMGs are ad-hoc codesigned for local
+    launch on Apple Silicon; they are not Developer ID signed or notarized
+    unless separately documented. Gatekeeper may still warn on first open.
+  - After building a fresh .app on Apple Silicon, ad-hoc sign before packaging:
+
+      codesign --force --deep --sign - dist/macos-arm64/PassMan.app
+
+
+Operational Notes
+-----------------
+
+  - Do not publish vault.dat with application binaries.
+  - Prefer the universal DMG when the target Mac architecture is unknown.
+  - Prefer the arm64 DMG on Apple Silicon for the smaller download.
+  - Verify hashes and OpenPGP signatures before unlocking a real vault.

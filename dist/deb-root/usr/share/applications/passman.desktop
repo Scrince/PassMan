@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=PassMan
-Comment=Encrypted password manager
-Exec=passman
-Icon=passman
-Terminal=false
-Categories=Utility;Security;

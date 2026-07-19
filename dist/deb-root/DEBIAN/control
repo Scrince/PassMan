@@ -1,7 +1,0 @@
-Package: passman
-Version: 1.0.0
-Section: utils
-Priority: optional
-Architecture: amd64
-Maintainer: PassMan <passman@example.local>
-Description: Encrypted password manager

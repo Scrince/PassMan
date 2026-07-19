@@ -1,6 +1,16 @@
-dc0e7dbd21368231d312fee0623103cb0d91427dd04365c81381602f08b2585d  PassMan.exe
-8680ee09927ca5b59b9051d2fa16a032b1088cf74000af61c37e267e11e47a1a  PassMan-macOS-x64.dmg
-dfd1dcb59f0a3fdbec57a6c89e5828be343b074ba73ec3e3e6c5ed1f959dd3cc  PassMan-macOS-arm64.dmg
-737444c772de24df05b52686f4871b002d978a3de6eb478ea918aa9396c84cd5  PassMan-macOS-universal.dmg
-d77f509fd08858b99f1e2fc30815dc9fcf7dbc08fb8b93b331f0b64a35b5ad41  PassMan-linux-x64.tar.gz
-7161cb47a626384536c18d17ebfff78b0553decb976a024ad9d151239f10a07e  PassMan-linux-x64.deb
+# PassMan v1.0.0 release checksums
+# Generated 2026-07-18T02:12Z
+# Signed with PassMan Release Signing (2026) <release@passman.local>
+# Fingerprint: 7858 E51C 98AD 2541 5098  9EF3 1F4D F0EB 1C80 C710
+
+# linux
+8819ddfce69397d0058fc9a1c8c66006a846e58a9649607ee721bb784595d6c3  release/v1.0.0/linux/PassMan-linux-x64.tar.gz
+6134f2adbf421f17c475084a69a729c99dc9b4a13491f5b4fe9a3321b160646a  release/v1.0.0/linux/PassMan-linux-x64.deb
+
+# macos
+fe6aa21fddc6da8f4d627ed0b120794965554d12766f06985597dd65393a176b  release/v1.0.0/macos/PassMan-macOS-arm64.dmg
+b61a100b232bb0cdab9a59b2d33bbe0bc5401af625675cf577c018c3da73fad3  release/v1.0.0/macos/PassMan-macOS-x64.dmg
+02456da0bc4db57639e4aa8a2cac3e60503b7ce03026c6b8cf2c18bf5ba23b05  release/v1.0.0/macos/PassMan-macOS-universal.dmg
+
+# windows
+bda13f1dd074bd125fc1a25e51d3ec2abf59a3a4aa642c6c37949f647547aacf  release/v1.0.0/windows/PassMan.exe

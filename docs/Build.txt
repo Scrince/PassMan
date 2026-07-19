@@ -1,0 +1,291 @@
+PassMan - Cross-Platform Build Guide
+====================================
+
+This document describes how to produce Linux and macOS release builds on a
+machine that matches the target OS. PassMan is packaged with PyInstaller.
+
+Native builds only
+------------------
+
+  - Build Linux packages on Linux.
+  - Build macOS packages on macOS.
+  - Build Windows packages on Windows.
+
+Cross-compiling from Windows to Linux/macOS is not supported. Copy the
+repository to the build machine, create a virtualenv, install dependencies,
+then run build.py.
+
+
+Repository layout used by packaging
+-----------------------------------
+
+  build.py                     Cross-platform packaging entry point
+  PassMan.spec                 Portable PyInstaller spec (macOS .app + onedir)
+  requirements.txt             Runtime + PyInstaller dependencies
+  src/main.py                  Application entry point
+  src/version.py               APP_NAME / APP_VERSION
+  src/assets/passman_icon.png  Bundled runtime icon (all platforms)
+  src/assets/passman_icon.ico  Windows executable icon
+  src/assets/macos/passman_icon.icns
+  src/assets/linux/passman_icon_*.png
+
+Do not point packaging at the top-level `assets/` branding kit. That tree is
+gitignored and is not required for application builds. Packaging uses only
+`src/assets/`.
+
+
+Common prerequisites
+--------------------
+
+  - Python 3.12 or newer recommended (3.11+ may work; test before release)
+  - pip
+  - A desktop stack capable of installing PyQt6 wheels for the host
+  - Network access once to install requirements (or a pre-seeded wheel cache)
+
+From the repository root:
+
+  python3 -m venv .venv
+  source .venv/bin/activate          # Windows: .venv\Scripts\activate
+  python -m pip install --upgrade pip
+  pip install -r requirements.txt
+
+Sanity-check before packaging:
+
+  python src/main.py
+
+
+Linux build (x86_64 or arm64)
+-----------------------------
+
+Prerequisites (Debian/Ubuntu-style examples):
+
+  sudo apt update
+  sudo apt install -y python3 python3-venv python3-pip \
+      libgl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0 \
+      libxcb-xinerama0 libxcb-icccm4 libxcb-image0 \
+      libxcb-keysyms1 libxcb-render-util0 libxcb-shape0
+
+Exact Qt system library names vary by distro. If PyQt6 fails to start from
+source, install the missing shared libraries reported by the loader, then
+retry packaging.
+
+Build (run on Linux):
+
+  source .venv/bin/activate
+  python build.py
+  # or explicitly:
+  python build.py --platform linux
+
+Outputs:
+
+  dist/linux-<arch>/PassMan/           PyInstaller onedir tree
+  dist/PassMan-linux-<arch>.tar.gz     Standalone archive
+  dist/PassMan-linux-<arch>.deb        Debian package
+  release/v<version>/linux/            Copied release artifacts
+
+Where <arch> is `x64` (amd64) or `arm64` depending on the build host.
+
+PyInstaller only (skip tar.gz / .deb):
+
+  python build.py --platform linux --skip-package
+
+Install test (.deb):
+
+  sudo apt install ./dist/PassMan-linux-x64.deb
+  passman
+
+Standalone test (tarball):
+
+  tar -xzf dist/PassMan-linux-x64.tar.gz
+  ./PassMan/PassMan
+
+Linux vault location (frozen build):
+
+  $XDG_DATA_HOME/PassMan/vault.dat
+  # or ~/.local/share/PassMan/vault.dat
+
+
+macOS build (Apple Silicon, Intel, or universal2)
+-------------------------------------------------
+
+Prerequisites:
+
+  - macOS 11+ recommended
+  - Xcode Command Line Tools (`xcode-select --install`) for codesign/hdiutil
+  - Python 3.12+ with a matching architecture for the target you want
+
+Build native architecture (run on macOS):
+
+  source .venv/bin/activate
+  python build.py
+  # or:
+  python build.py --platform macos
+
+Apple Silicon only:
+
+  python build.py --platform macos --arch arm64
+
+Intel only:
+
+  python build.py --platform macos --arch x86_64
+
+Universal2 (requires a Python/PyQt stack that can produce universal2 binaries):
+
+  python build.py --platform macos --arch universal2
+
+Outputs:
+
+  dist/macos-<label>/PassMan.app       Application bundle
+  dist/macos-<label>/PassMan/          Onedir companion tree
+  dist/PassMan-macOS-<label>.dmg       Disk image
+  release/v<version>/macos/            Copied release artifact
+
+Where <label> is `arm64`, `x64`, or `universal`.
+
+PyInstaller only (skip DMG):
+
+  python build.py --platform macos --skip-package
+
+Notes:
+
+  - DMG creation uses `hdiutil` (standard on macOS).
+  - The app is not notarized or Developer ID signed by this script. Gatekeeper
+    will warn on unsigned downloads. For distribution outside your own machines,
+    sign and notarize with an Apple Developer identity after packaging.
+  - Optional ad-hoc sign after build:
+
+      codesign --force --deep --sign - dist/macos-arm64/PassMan.app
+
+macOS vault location (frozen build):
+
+  ~/Library/Application Support/PassMan/vault.dat
+
+
+Windows build (for reference)
+-----------------------------
+
+  .venv\Scripts\activate
+  python build.py
+  # or:
+  python build.py --platform windows
+
+Outputs:
+
+  dist/PassMan-<version>.exe
+  release/v<version>/windows/PassMan.exe
+
+
+Release signing (all platforms)
+-------------------------------
+
+Every packaged application under release/v<version>/ must receive a detached
+ASCII-armored OpenPGP signature from the repo release-signing key, plus a
+signed per-OS SHA256SUMS manifest. The public aggregate lives in docs/.
+
+  Application packages (sign each binary / archive):
+
+    release/v1.0.0/linux/PassMan-linux-x64.tar.gz
+    release/v1.0.0/linux/PassMan-linux-x64.deb
+    release/v1.0.0/macos/PassMan-macOS-arm64.dmg
+    release/v1.0.0/macos/PassMan-macOS-x64.dmg
+    release/v1.0.0/macos/PassMan-macOS-universal.dmg
+    release/v1.0.0/windows/PassMan.exe
+
+  Do not PGP-sign vault.dat, vault.dat.bak, or other runtime data that may sit
+  beside packages. Sign only distributable application artifacts.
+
+  Signing key (repo-local GPG home, gitignored private material):
+
+    export GNUPGHOME="$PWD/.gnupg-release"
+    # Identity: PassMan Release Signing (2026) <release@passman.local>
+    # Primary fingerprint: 7858 E51C 98AD 2541 5098  9EF3 1F4D F0EB 1C80 C710
+    # Signing subkey:      88DF 58F7 5DBC CA4D D0A3  096C 69A8 3CFF 7D6F B86B
+
+  Per-OS example (repeat for linux, macos, windows):
+
+    export GNUPGHOME="$PWD/.gnupg-release"
+    cd release/v1.0.0/macos
+
+    # checksum only the packages (not *.asc, not vault data)
+    shasum -a 256 PassMan-macOS-*.dmg > SHA256SUMS
+    # Linux:  shasum -a 256 PassMan-linux-x64.tar.gz PassMan-linux-x64.deb > SHA256SUMS
+    # Windows: shasum -a 256 PassMan.exe > SHA256SUMS
+
+    gpg --local-user 88DF58F75DBCCA4DD0A3096C69A83CFF7D6FB86B \
+        --detach-sign --armor SHA256SUMS
+    for f in PassMan-macOS-*.dmg; do
+      gpg --local-user 88DF58F75DBCCA4DD0A3096C69A83CFF7D6FB86B \
+          --detach-sign --armor "$f"
+    done
+
+  Aggregate docs manifest (paths relative to the repository root):
+
+    # Write docs/SHA256SUMS with one "hash  release/v1.0.0/<os>/<file>" line
+    # per package, then:
+    gpg --local-user 88DF58F75DBCCA4DD0A3096C69A83CFF7D6FB86B \
+        --detach-sign --armor docs/SHA256SUMS
+
+  Verify before publishing:
+
+    gpg --import docs/PassMan_Release_Signing_2026_pubkey.asc
+    gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
+    cd release/v1.0.0/linux && shasum -a 256 -c SHA256SUMS
+    gpg --verify PassMan-linux-x64.tar.gz.asc PassMan-linux-x64.tar.gz
+
+Public key for verifiers:
+
+  docs/PassMan_Release_Signing_2026_pubkey.asc
+
+Private signing material lives in `.gnupg-release/` and is gitignored. Do not
+copy private keys into the public release tree.
+
+Note: OpenPGP release signatures prove artifact integrity and origin for the
+release key holder. They do not replace Apple Developer ID / notarization or
+Windows Authenticode. On Apple Silicon, ad-hoc codesign the .app before making
+the DMG so the binary can launch locally:
+
+  codesign --force --deep --sign - dist/macos-arm64/PassMan.app
+
+
+Version bump
+------------
+
+Edit:
+
+  src/version.py
+
+Then rebuild on each OS. Keep CHANGELOG.md in sync.
+
+
+Troubleshooting
+---------------
+
+1. "Missing required build inputs"
+   Ensure `src/assets/passman_icon.png` (and platform icons) exist. They are
+   tracked under `src/assets/`, not the gitignored top-level `assets/` folder.
+
+2. PyQt6 import or plugin errors on Linux
+   Install the missing Qt/XCB system libraries for your distro, confirm
+   `python src/main.py` works, then rebuild.
+
+3. universal2 fails on macOS
+   You need a universal2-capable CPython and wheels. Prefer separate arm64 and
+   x86_64 builds if universal2 tooling is unavailable.
+
+4. Wrong path separators in --add-data
+   Always use `python build.py`. It selects `;` on Windows and `:` on Unix.
+
+5. Absolute Windows paths in old .spec files
+   Use the portable `PassMan.spec` in the repo root. Do not commit
+   machine-specific generated specs with `T:\...` paths.
+
+
+What is intentionally not produced by build.py
+----------------------------------------------
+
+  - AppImage
+  - RPM
+  - Notarized macOS packages
+  - Authenticode-signed Windows packages
+
+Those can be added later without changing the vault format.

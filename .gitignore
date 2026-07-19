@@ -12,7 +12,8 @@ __pycache__/
 build/
 dist/
 release/
-assets/
+# Top-level branding kit only (application icons live under src/assets/).
+/assets/
 *.log
 
 # Local encrypted vault data

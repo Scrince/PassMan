@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QComboBox, QDialog, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QScrollArea, QStyle, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QScrollArea, QStyle, QVBoxLayout, QWidget
 
+from gui.resizable import ResizableDialog
 from gui.widgets.field_editor import FieldEditor
-from models.entry import Entry, normalize_field_type
+from models.entry import Entry
 
 
 SENSITIVE_FIELD_HINTS = ("password", "pass", "pin", "key", "secret", "token", "seed", "recovery")
@@ -16,11 +17,12 @@ def _field_type_for_name(name: str) -> str:
     return "text"
 
 
-class AddEntryWindow(QDialog):
+class AddEntryWindow(ResizableDialog):
     def __init__(self, parent: QWidget | None = None, entry: Entry | None = None, category: str = "Website") -> None:
         super().__init__(parent)
         self.setWindowTitle("Edit Entry" if entry else "Add Entry")
         self.setMinimumSize(560, 420)
+        self.resize(640, 520)
         self._field_rows: list[FieldEditor] = []
         self._entry_id = entry.id if entry else None
         self._created_at = entry.created_at if entry else None
@@ -64,8 +66,7 @@ class AddEntryWindow(QDialog):
         if entry:
             for key, value in entry.fields.items():
                 field_name = str(key)
-                field_type = entry.field_types.get(field_name, _field_type_for_name(field_name))
-                self.add_field(field_name, str(value), normalize_field_type(field_type))
+                self.add_field(field_name, str(value), _field_type_for_name(field_name))
         else:
             self._add_defaults(category)
 
@@ -106,19 +107,16 @@ class AddEntryWindow(QDialog):
 
     def entry(self) -> Entry:
         fields = {}
-        field_types = {}
         for row in self._field_rows:
-            name, value, field_type = row.value()
+            name, value = row.value()
             if name:
                 fields[name] = value
-                field_types[name] = field_type
         if self._entry_id:
             return Entry(
                 id=self._entry_id,
                 name=self.name_edit.text().strip(),
                 type=self.type_combo.currentText(),
                 fields=fields,
-                field_types=field_types,
                 notes=self._notes,
                 created_at=self._created_at or "",
             )
@@ -126,6 +124,5 @@ class AddEntryWindow(QDialog):
             name=self.name_edit.text().strip(),
             type=self.type_combo.currentText(),
             fields=fields,
-            field_types=field_types,
             notes=self._notes,
         )

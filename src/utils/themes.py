@@ -220,6 +220,11 @@ QPushButton#SidebarButton {{
 QPushButton#SidebarButton:hover {{
     background: {p["button_hover"]};
 }}
+QPushButton#SidebarButton:checked {{
+    background: {p["button"]};
+    border: 1px solid {p["focus"]};
+    color: {p["text"]};
+}}
 QLabel#Muted {{
     color: {p["muted"]};
 }}

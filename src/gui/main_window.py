@@ -14,6 +14,7 @@ from PyQt6.QtCore import QEvent, QPropertyAnimation, QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QIntValidator, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
+    QButtonGroup,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -31,6 +32,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
+    QStackedWidget,
     QStyle,
     QTextEdit,
     QVBoxLayout,
@@ -39,6 +41,11 @@ from PyQt6.QtWidgets import (
 
 from crypto.vault import InvalidPasswordError, Vault, VaultError, VaultFormatError
 from gui.add_entry_window import AddEntryWindow
+from gui.authenticator_panel import AuthenticatorPanel
+from gui.keys_panel import KeysPanel
+from gui.recovery_panel import RecoveryPanel
+from gui.resizable import ResizableDialog, ResizableMainWindow
+from gui.seed_panel import SeedPanel
 from gui.settings_window import SettingsWindow
 from gui.widgets.entry_card import EntryCard
 from models.entry import Entry
@@ -51,11 +58,12 @@ from version import APP_DISPLAY_NAME, APP_NAME
 APP_ICON_PATH = asset_path("passman_icon.png")
 
 
-class DeveloperWindow(QDialog):
+class DeveloperWindow(ResizableDialog):
     def __init__(self, vault: Vault, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Developer Vault JSON")
         self.setMinimumSize(700, 520)
+        self.resize(820, 600)
         root = QVBoxLayout(self)
         title = QLabel("Decrypted JSON")
         title.setObjectName("Title")
@@ -69,11 +77,12 @@ class DeveloperWindow(QDialog):
         root.addWidget(close, alignment=Qt.AlignmentFlag.AlignRight)
 
 
-class NotesWindow(QDialog):
+class NotesWindow(ResizableDialog):
     def __init__(self, entry: Entry, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(f"Notes - {entry.name}")
         self.setMinimumSize(520, 360)
+        self.resize(600, 420)
         root = QVBoxLayout(self)
 
         title = QLabel(entry.name)
@@ -94,12 +103,13 @@ class NotesWindow(QDialog):
         return self.notes_edit.toPlainText()
 
 
-class PasswordGeneratorWindow(QDialog):
+class PasswordGeneratorWindow(ResizableDialog):
     def __init__(self, copy_callback: Callable[[str], None], parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.copy_callback = copy_callback
         self.setWindowTitle("Password Generator")
         self.setMinimumSize(560, 430)
+        self.resize(620, 500)
 
         root = QVBoxLayout(self)
         root.setSpacing(14)
@@ -260,13 +270,14 @@ class PasswordGeneratorWindow(QDialog):
             self.copy_callback(password)
 
 
-class BackupWindow(QDialog):
+class BackupWindow(ResizableDialog):
     def __init__(self, vault: Vault, restored_callback: Callable[[], None], parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.vault = vault
         self.restored_callback = restored_callback
         self.setWindowTitle("Backup Manager")
         self.setMinimumSize(520, 300)
+        self.resize(600, 360)
 
         root = QVBoxLayout(self)
         root.setSpacing(14)
@@ -359,7 +370,7 @@ class BackupWindow(QDialog):
         QMessageBox.information(self, "Backup restored", "Backup restored successfully.")
 
 
-class MainWindow(QMainWindow):
+class MainWindow(ResizableMainWindow):
     lock_requested = pyqtSignal()
     theme_changed = pyqtSignal(str)
 
@@ -379,6 +390,7 @@ class MainWindow(QMainWindow):
         if APP_ICON_PATH.exists():
             self.setWindowIcon(QIcon(str(APP_ICON_PATH)))
         self.resize(1120, 740)
+        self.setMinimumSize(800, 560)
 
         self.auto_lock_timer = QTimer(self)
         self.auto_lock_timer.setSingleShot(True)
@@ -416,6 +428,43 @@ class MainWindow(QMainWindow):
         subtitle.setTextFormat(Qt.TextFormat.PlainText)
         subtitle.setObjectName("Muted")
         side_layout.addWidget(subtitle)
+
+        # Mode tabs: password vault vs project GPG key storage (separate UIs).
+        self.mode_group = QButtonGroup(self)
+        self.mode_group.setExclusive(True)
+        self.vault_mode_button = QPushButton("Vault")
+        self.vault_mode_button.setObjectName("SidebarButton")
+        self.vault_mode_button.setCheckable(True)
+        self.vault_mode_button.setChecked(True)
+        self.vault_mode_button.setToolTip("Password entries")
+        self.keys_mode_button = QPushButton("Project Keys")
+        self.keys_mode_button.setObjectName("SidebarButton")
+        self.keys_mode_button.setCheckable(True)
+        self.keys_mode_button.setToolTip("GPG .key files by project (C/S/E/A) + public .asc")
+        self.auth_mode_button = QPushButton("Authenticator")
+        self.auth_mode_button.setObjectName("SidebarButton")
+        self.auth_mode_button.setCheckable(True)
+        self.auth_mode_button.setToolTip("TOTP/HOTP authenticator codes")
+        self.recovery_mode_button = QPushButton("Recovery")
+        self.recovery_mode_button.setObjectName("SidebarButton")
+        self.recovery_mode_button.setCheckable(True)
+        self.recovery_mode_button.setToolTip(
+            "Recovery keys and backup codes (GitHub, BitLocker, etc.)"
+        )
+        self.seed_mode_button = QPushButton("Seed")
+        self.seed_mode_button.setObjectName("SidebarButton")
+        self.seed_mode_button.setCheckable(True)
+        self.seed_mode_button.setToolTip("Crypto wallet seed phrases (12/24 words) and passphrases")
+        self.mode_group.addButton(self.vault_mode_button, 0)
+        self.mode_group.addButton(self.keys_mode_button, 1)
+        self.mode_group.addButton(self.auth_mode_button, 2)
+        self.mode_group.addButton(self.recovery_mode_button, 3)
+        self.mode_group.addButton(self.seed_mode_button, 4)
+        side_layout.addWidget(self.vault_mode_button)
+        side_layout.addWidget(self.keys_mode_button)
+        side_layout.addWidget(self.auth_mode_button)
+        side_layout.addWidget(self.recovery_mode_button)
+        side_layout.addWidget(self.seed_mode_button)
 
         generator = QPushButton("Password Generator")
         generator.setObjectName("SidebarButton")
@@ -455,9 +504,13 @@ class MainWindow(QMainWindow):
         side_layout.addWidget(lock)
         shell.addWidget(sidebar)
 
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(22, 18, 22, 18)
+        self.content_stack = QStackedWidget()
+        shell.addWidget(self.content_stack, 1)
+
+        # --- Password vault page (existing entry list) ---
+        vault_page = QWidget()
+        vault_layout = QVBoxLayout(vault_page)
+        vault_layout.setContentsMargins(22, 18, 22, 18)
         top = QHBoxLayout()
         self.search = QLineEdit()
         self.search.setPlaceholderText("Search by name, type, field name, or value")
@@ -474,11 +527,11 @@ class MainWindow(QMainWindow):
         top.addWidget(self.search, 1)
         top.addWidget(self.sort_combo)
         top.addWidget(add)
-        content_layout.addLayout(top)
+        vault_layout.addLayout(top)
 
         self.count_label = QLabel()
         self.count_label.setObjectName("Muted")
-        content_layout.addWidget(self.count_label)
+        vault_layout.addWidget(self.count_label)
 
         self.list_widget = QWidget()
         self.list_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
@@ -492,15 +545,74 @@ class MainWindow(QMainWindow):
         scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setWidget(self.list_widget)
-        content_layout.addWidget(scroll, 1)
-        shell.addWidget(content, 1)
+        vault_layout.addWidget(scroll, 1)
+        self.content_stack.addWidget(vault_page)
 
+        # --- Project keys page (independent of password entries) ---
+        keys_page = QWidget()
+        keys_page_layout = QVBoxLayout(keys_page)
+        keys_page_layout.setContentsMargins(22, 18, 22, 18)
+        self.keys_panel = KeysPanel(self.vault, self.copy_text, keys_page)
+        self.keys_panel.status_message.connect(lambda message: self.statusBar().showMessage(message, 2500))
+        keys_page_layout.addWidget(self.keys_panel)
+        self.content_stack.addWidget(keys_page)
+
+        # --- Authenticator page (TOTP/HOTP) ---
+        auth_page = QWidget()
+        auth_page_layout = QVBoxLayout(auth_page)
+        auth_page_layout.setContentsMargins(22, 18, 22, 18)
+        self.auth_panel = AuthenticatorPanel(self.vault, self.copy_text, auth_page)
+        self.auth_panel.status_message.connect(lambda message: self.statusBar().showMessage(message, 2500))
+        auth_page_layout.addWidget(self.auth_panel)
+        self.content_stack.addWidget(auth_page)
+
+        # --- Recovery page (backup codes / recovery keys) ---
+        recovery_page = QWidget()
+        recovery_page_layout = QVBoxLayout(recovery_page)
+        recovery_page_layout.setContentsMargins(22, 18, 22, 18)
+        self.recovery_panel = RecoveryPanel(self.vault, self.copy_text, recovery_page)
+        self.recovery_panel.status_message.connect(
+            lambda message: self.statusBar().showMessage(message, 2500)
+        )
+        recovery_page_layout.addWidget(self.recovery_panel)
+        self.content_stack.addWidget(recovery_page)
+
+        # --- Seed page (wallet seed phrases) ---
+        seed_page = QWidget()
+        seed_page_layout = QVBoxLayout(seed_page)
+        seed_page_layout.setContentsMargins(22, 18, 22, 18)
+        self.seed_panel = SeedPanel(self.vault, self.copy_text, seed_page)
+        self.seed_panel.status_message.connect(
+            lambda message: self.statusBar().showMessage(message, 2500)
+        )
+        seed_page_layout.addWidget(self.seed_panel)
+        self.content_stack.addWidget(seed_page)
+
+        self.mode_group.idClicked.connect(self._switch_mode)
         self.search.textChanged.connect(self.refresh_entries)
         self.sort_combo.currentIndexChanged.connect(self.refresh_entries)
         self.refresh_entries()
         self.reset_auto_lock_timer()
 
-    def eventFilter(self, obj, event) -> bool:
+    def _switch_mode(self, mode_id: int) -> None:
+        self.content_stack.setCurrentIndex(mode_id)
+        if mode_id == 1:
+            self.keys_panel.refresh()
+            self.statusBar().showMessage("Project Keys", 1500)
+        elif mode_id == 2:
+            self.auth_panel.refresh()
+            self.statusBar().showMessage("Authenticator", 1500)
+        elif mode_id == 3:
+            self.recovery_panel.refresh()
+            self.statusBar().showMessage("Recovery", 1500)
+        elif mode_id == 4:
+            self.seed_panel.refresh()
+            self.statusBar().showMessage("Seed", 1500)
+        else:
+            self.refresh_entries()
+            self.statusBar().showMessage("Vault", 1500)
+
+    def eventFilter(self, obj, event) -> bool:              
         if event.type() in {
             QEvent.Type.MouseButtonPress,
             QEvent.Type.KeyPress,
@@ -553,8 +665,13 @@ class MainWindow(QMainWindow):
     def add_entry(self) -> None:
         dialog = AddEntryWindow(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            self.vault.model.entries.append(dialog.entry())
-            self.vault.save()
+            entry = dialog.entry()
+            self.vault.model.entries.append(entry)
+            if not self._persist_vault():
+                self.vault.model.entries = [
+                    item for item in self.vault.model.entries if item.id != entry.id
+                ]
+                return
             self.refresh_entries()
 
     def edit_entry(self, entry_id: str) -> None:
@@ -564,12 +681,15 @@ class MainWindow(QMainWindow):
         dialog = AddEntryWindow(self, entry=entry)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             updated = dialog.entry()
+            previous = (entry.name, entry.type, dict(entry.fields), entry.notes, entry.modified_at)
             entry.name = updated.name
             entry.type = updated.type
             entry.fields = updated.fields
             entry.notes = updated.notes
             entry.mark_modified()
-            self.vault.save()
+            if not self._persist_vault():
+                entry.name, entry.type, entry.fields, entry.notes, entry.modified_at = previous
+                return
             self.refresh_entries()
 
     def edit_notes(self, entry_id: str) -> None:
@@ -578,9 +698,14 @@ class MainWindow(QMainWindow):
             return
         dialog = NotesWindow(entry, self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
+            previous_notes = entry.notes
+            previous_modified = entry.modified_at
             entry.notes = dialog.notes()
             entry.mark_modified()
-            self.vault.save()
+            if not self._persist_vault():
+                entry.notes = previous_notes
+                entry.modified_at = previous_modified
+                return
             self.refresh_entries()
 
     def delete_entry(self, entry_id: str) -> None:
@@ -589,16 +714,33 @@ class MainWindow(QMainWindow):
             return
         answer = QMessageBox.question(self, "Delete entry", f"Delete {entry.name}?")
         if answer == QMessageBox.StandardButton.Yes:
+            previous = list(self.vault.model.entries)
             self.vault.model.entries = [item for item in self.vault.model.entries if item.id != entry_id]
-            self.vault.save()
+            if not self._persist_vault():
+                self.vault.model.entries = previous
+                return
             self.refresh_entries()
 
     def _entry_by_id(self, entry_id: str) -> Entry | None:
         return next((entry for entry in self.vault.model.entries if entry.id == entry_id), None)
 
+    def _persist_vault(self) -> bool:
+        try:
+            self.vault.save()
+            return True
+        except Exception as exc:
+            QMessageBox.warning(self, "Save failed", f"Could not write the vault:\n{exc}")
+            return False
+
     def copy_text(self, text: str) -> None:
         self.clipboard.copy(text, self.clipboard_clear_seconds)
         self.statusBar().showMessage("Copied to clipboard", 2500)
+
+    def closeEvent(self, event) -> None:  # type: ignore[override]
+        # Flush PassMan-copied secrets so they do not survive lock/close.
+        self.clipboard.flush()
+        self.auto_lock_timer.stop()
+        super().closeEvent(event)
 
     def open_settings(self) -> None:
         dialog = SettingsWindow(
@@ -629,7 +771,8 @@ class MainWindow(QMainWindow):
         self.vault.model.settings.auto_lock_seconds = self.auto_lock_seconds
         self.vault.model.settings.clipboard_clear_seconds = self.clipboard_clear_seconds
         self.vault.model.settings.theme_name = self.theme_name
-        self.vault.save()
+        if not self._persist_vault():
+            return
         self.app.setStyleSheet(theme_stylesheet(theme_name))
         self.theme_changed.emit(theme_name)
         if self.debug_panel:
@@ -648,6 +791,10 @@ class MainWindow(QMainWindow):
             self.debug_panel.setVisible(self.debug_enabled)
         self.reset_auto_lock_timer()
         self.refresh_entries()
+        self.keys_panel.refresh()
+        self.auth_panel.refresh()
+        self.recovery_panel.refresh()
+        self.seed_panel.refresh()
 
     def change_password(self, old_password: str, new_password: str) -> None:
         try:
@@ -678,7 +825,13 @@ class MainWindow(QMainWindow):
             Entry("Backup Drive", "Drive", {"key": "drive-recovery-key"}),
         ]
         self.vault.model.entries.extend(samples)
-        self.vault.save()
+        if not self._persist_vault():
+            # Drop the samples we just appended on failure.
+            sample_ids = {item.id for item in samples}
+            self.vault.model.entries = [
+                item for item in self.vault.model.entries if item.id not in sample_ids
+            ]
+            return
         self.refresh_entries()
 
     def test_encryption(self) -> None:
@@ -690,7 +843,7 @@ class MainWindow(QMainWindow):
                 test.save()
                 test.unlock("test-pass")
                 assert test.model.entries[0].fields["secret"] == "ok"
-        except Exception as exc:
+        except Exception as exc:                                    
             QMessageBox.critical(self, "Crypto test failed", str(exc))
             return
         QMessageBox.information(self, "Crypto test", "Encryption/decryption test passed.")
@@ -705,7 +858,7 @@ class MainWindow(QMainWindow):
                 test.change_password("old-pass", "new-pass")
                 test.unlock("new-pass")
                 assert test.model.entries[0].name == "Password Test"
-        except Exception as exc:
+        except Exception as exc:                                    
             QMessageBox.critical(self, "Password test failed", str(exc))
             return
         QMessageBox.information(self, "Password test", "Password change test passed.")

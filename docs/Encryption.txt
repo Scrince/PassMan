@@ -59,7 +59,11 @@ When running as a frozen Linux build:
   else:
       vault path = HOME / ".local" / "share" / "PassMan" / "vault.dat"
 
-When running as a frozen non-Linux build:
+When running as a frozen macOS build:
+
+  vault path = HOME / "Library" / "Application Support" / "PassMan" / "vault.dat"
+
+When running as a frozen Windows (or other non-Linux, non-macOS) build:
 
   vault path = directory containing sys.executable / "vault.dat"
 
@@ -187,6 +191,31 @@ The logical plaintext object is:
         "modified_at": "<ISO-8601 UTC timestamp>"
       }
     ],
+    "key_projects": [
+      {
+        "id": "<hex uuid string>",
+        "name": "<project name>",
+        "description": "<project description>",
+        "public_asc": "<project public key half, ASCII-armored .asc>",
+        "notes": "<project notes>",
+        "keys": [
+          {
+            "id": "<hex uuid string>",
+            "role": "C|S|E|A",
+            "label": "<optional key label>",
+            "fingerprint": "<fingerprint>",
+            "key_id": "<key id>",
+            "key_filename": "<original .key filename>",
+            "key_data_b64": "<Base64 of raw .key file bytes>",
+            "notes": "<key notes>",
+            "created_at": "<ISO-8601 UTC timestamp>",
+            "modified_at": "<ISO-8601 UTC timestamp>"
+          }
+        ],
+        "created_at": "<ISO-8601 UTC timestamp>",
+        "modified_at": "<ISO-8601 UTC timestamp>"
+      }
+    ],
     "settings": {
       "debug_enabled": false,
       "auto_lock_seconds": 300,
@@ -194,6 +223,66 @@ The logical plaintext object is:
       "theme_name": "<theme name>"
     }
   }
+
+Also included in the plaintext vault model:
+
+  authenticator_entries: [
+    {
+      "id": "<hex uuid string>",
+      "name": "<account name>",
+      "issuer": "<issuer>",
+      "secret": "<Base32 TOTP/HOTP secret>",
+      "type": "totp|hotp",
+      "algorithm": "SHA1|SHA256|SHA512",
+      "digits": 6,
+      "period": 30,
+      "counter": 0,
+      "notes": "<notes>",
+      "created_at": "<ISO-8601 UTC timestamp>",
+      "modified_at": "<ISO-8601 UTC timestamp>"
+    }
+  ]
+
+  recovery_entries: [
+    {
+      "id": "<hex uuid string>",
+      "name": "<label>",
+      "service": "<service name, e.g. GitHub or BitLocker>",
+      "codes": "<recovery codes / word list / recovery key text>",
+      "notes": "<notes>",
+      "created_at": "<ISO-8601 UTC timestamp>",
+      "modified_at": "<ISO-8601 UTC timestamp>"
+    }
+  ]
+
+  seed_entries: [
+    {
+      "id": "<hex uuid string>",
+      "name": "<label>",
+      "wallet": "<wallet or chain label>",
+      "word_count": 12,
+      "seed_phrase": "<normalized space-separated words>",
+      "passphrase": "<optional BIP39-style passphrase>",
+      "notes": "<notes>",
+      "created_at": "<ISO-8601 UTC timestamp>",
+      "modified_at": "<ISO-8601 UTC timestamp>"
+    }
+  ]
+
+key_projects, authenticator_entries, recovery_entries, and seed_entries are
+optional for older vaults. VaultModel.from_json_dict defaults missing lists to
+empty so vault version 1 files without those fields continue to unlock.
+GPG role codes are OpenPGP capability flags:
+
+  C = Certify
+  S = Sign
+  E = Encrypt
+  A = Authenticate
+
+Each C/S/E/A entry stores a binary-capable .key file as Base64 (key_data_b64)
+plus the original filename (key_filename). The only .asc material is the
+project public half in public_asc. Older keys that stored private_asc text are
+migrated on load into key_data_b64.
 
 Because sort_keys=True is used recursively, the entry object key order in the
 encrypted plaintext bytes is lexicographic:

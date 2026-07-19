@@ -75,9 +75,8 @@ Verified Artifact Metadata
 The compressed standalone artifact was verified as:
 
   release/v1.0.0/linux/PassMan-linux-x64.tar.gz
-  gzip compressed data
-  last modified: Fri Jul 3 18:23:46 2026
-  uncompressed tar stream size modulo 2^32: 204477440 bytes
+  gzip compressed data, from Unix
+  uncompressed tar stream size modulo 2^32: 202608640 bytes
 
 The executable inside the tarball was verified as:
 
@@ -135,8 +134,8 @@ SHA-256 Verification
 
 The Linux artifact hashes are recorded in release/v1.0.0/linux/SHA256SUMS:
 
-  d77f509fd08858b99f1e2fc30815dc9fcf7dbc08fb8b93b331f0b64a35b5ad41  PassMan-linux-x64.tar.gz
-  7161cb47a626384536c18d17ebfff78b0553decb976a024ad9d151239f10a07e  PassMan-linux-x64.deb
+  8819ddfce69397d0058fc9a1c8c66006a846e58a9649607ee721bb784595d6c3  PassMan-linux-x64.tar.gz
+  6134f2adbf421f17c475084a69a729c99dc9b4a13491f5b4fe9a3321b160646a  PassMan-linux-x64.deb
 
 Verify from the release directory with:
 

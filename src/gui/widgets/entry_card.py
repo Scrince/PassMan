@@ -5,7 +5,7 @@ from datetime import datetime
 from PyQt6.QtCore import QTimer, Qt, pyqtSignal
 from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout, QPushButton, QStyle, QVBoxLayout, QWidget, QSizePolicy
 
-from models.entry import Entry, normalize_field_type
+from models.entry import Entry
 
 
 SENSITIVE_FIELD_HINTS = ("password", "pass", "pin", "key", "secret", "token", "seed", "recovery")
@@ -72,14 +72,11 @@ class EntryCard(QFrame):
 
         copy_button = _configure_button(QPushButton("Copy"), HEADER_BUTTON_WIDTH)
         copy_button.setToolTip("Copy entry data")
-        notes_button = _configure_button(QPushButton("Notes"), HEADER_BUTTON_WIDTH)
-        notes_button.setToolTip(f"Edit notes for {entry.name}")
         edit_button = _configure_button(QPushButton("Edit"), HEADER_BUTTON_WIDTH)
         edit_button.setToolTip("Edit entry")
         delete_button = _configure_button(QPushButton("Delete"), HEADER_BUTTON_WIDTH, "DangerButton")
         delete_button.setToolTip("Delete entry")
         header.addWidget(copy_button)
-        header.addWidget(notes_button)
         header.addWidget(edit_button)
         header.addWidget(delete_button)
         root.addLayout(header)
@@ -98,10 +95,7 @@ class EntryCard(QFrame):
             name_label = QLabel(str(key))
             name_label.setObjectName("Muted")
             value_text = str(value)
-            field_type = normalize_field_type(entry.field_types.get(str(key)))
-            is_sensitive = field_type == "password" or (
-                str(key) not in entry.field_types and any(hint in str(key).lower() for hint in SENSITIVE_FIELD_HINTS)
-            )
+            is_sensitive = any(hint in str(key).lower() for hint in SENSITIVE_FIELD_HINTS)
             shown = MASK_TEXT if is_sensitive else value_text
             value_label = QLabel(shown)
             value_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
@@ -111,6 +105,10 @@ class EntryCard(QFrame):
             grid.addWidget(name_label, row, 0)
             grid.addWidget(value_label, row, 1)
             if is_sensitive:
+                notes_button = _configure_button(QPushButton("Notes"), FIELD_BUTTON_WIDTH, "FieldActionButton")
+                notes_button.setToolTip(f"Edit notes for {entry.name}")
+                notes_button.clicked.connect(lambda checked=False, entry_id=entry.id: self.notes_requested.emit(entry_id))
+                grid.addWidget(notes_button, row, 2)
                 reveal_button = _configure_button(QPushButton("Show"), FIELD_BUTTON_WIDTH, "FieldActionButton")
                 reveal_button.setToolTip(f"Show or hide {key}")
                 reveal_button.clicked.connect(
@@ -123,7 +121,6 @@ class EntryCard(QFrame):
         root.addWidget(fields)
 
         copy_button.clicked.connect(self._copy_entry)
-        notes_button.clicked.connect(lambda: self.notes_requested.emit(entry.id))
         edit_button.clicked.connect(lambda: self.edit_requested.emit(entry.id))
         delete_button.clicked.connect(lambda: self.delete_requested.emit(entry.id))
 

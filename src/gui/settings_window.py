@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QIntValidator
-from PyQt6.QtWidgets import QCheckBox, QComboBox, QDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QStyle, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QCheckBox, QComboBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QStyle, QVBoxLayout, QWidget
 
+from gui.resizable import ResizableDialog
 from utils.themes import THEME_OPTIONS
 
 
@@ -53,7 +54,7 @@ class SecondsControl(QWidget):
         self.value_edit.setText(str(max(self.minimum, min(self.maximum, self.normalize_value() + amount))))
 
 
-class SettingsWindow(QDialog):
+class SettingsWindow(ResizableDialog):
     password_change_requested = pyqtSignal(str, str)
     lock_requested = pyqtSignal()
     settings_changed = pyqtSignal(bool, int, int, str)
@@ -69,7 +70,8 @@ class SettingsWindow(QDialog):
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Settings")
-        self.setMinimumWidth(460)
+        self.setMinimumSize(460, 360)
+        self.resize(520, 420)
 
         root = QVBoxLayout(self)
         title = QLabel("Settings")
@@ -124,7 +126,7 @@ class SettingsWindow(QDialog):
         lock.clicked.connect(self._lock_and_close)
         close.clicked.connect(self._save_and_close)
 
-    def closeEvent(self, event) -> None:
+    def closeEvent(self, event) -> None:              
         self._save_and_close()
         event.accept()
 
