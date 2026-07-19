@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
 
 from crypto.vault import InvalidPasswordError, Vault, VaultError, VaultFormatError
 from gui.main_window import MainWindow
+from gui.resizable import ResizableDialog
 from utils.file_paths import VAULT_FILENAME, asset_path, vault_path
 from utils.themes import DEFAULT_THEME_NAME, theme_stylesheet
 from version import APP_DISPLAY_NAME, APP_NAME, APP_VERSION
@@ -27,7 +28,7 @@ from version import APP_DISPLAY_NAME, APP_NAME, APP_VERSION
 APP_ICON_PATH = asset_path("passman_icon.png")
 
 
-class PasswordDialog(QDialog):
+class PasswordDialog(ResizableDialog):
     def __init__(self, creating: bool) -> None:
         super().__init__()
         self.creating = creating
@@ -35,7 +36,7 @@ class PasswordDialog(QDialog):
         self.setWindowTitle(f"{action} - {APP_DISPLAY_NAME}")
         if APP_ICON_PATH.exists():
             self.setWindowIcon(QIcon(str(APP_ICON_PATH)))
-        self.setMinimumWidth(390)
+        self.setMinimumSize(390, 280)
         root = QVBoxLayout(self)
         icon_label = QLabel()
         icon_label.setPixmap(
