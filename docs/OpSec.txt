@@ -21,6 +21,8 @@ Current security-relevant implementation behavior:
   - Frozen Linux builds store vault.dat under XDG_DATA_HOME/PassMan.
   - Frozen macOS builds store vault.dat under
     ~/Library/Application Support/PassMan.
+  - Frozen Windows builds prefer an existing vault.dat or vault.dat.bak beside
+    the executable; otherwise they use %LOCALAPPDATA%/PassMan.
 
 Encryption.txt defines the cryptographic file format. This document defines
 how an operator should handle the application, vault files, backups, release
@@ -602,6 +604,8 @@ Platform-Specific Notes
 Windows:
 
   - PassMan.exe is PGP-signed as a release artifact (PassMan.exe.asc).
+  - The v1.0.0 Windows executable and checksum manifests were refreshed and
+    verified on 2026-10-17; see docs/WindowsRelease.txt.
   - The executable is not Authenticode-signed unless separately documented.
   - Windows may show an unknown-publisher warning.
   - Do not treat vault.dat or vault.dat.bak beside the exe as signed

@@ -55,7 +55,7 @@ class Vault:
         return self._password is not None
 
     def exists(self) -> bool:
-        return self.path.exists() or self.load_path.exists()
+        return self.path.exists() or self.load_path.exists() or self.backup_path.exists()
 
     @property
     def backup_path(self) -> Path:
@@ -84,7 +84,7 @@ class Vault:
         backup_vault = Vault(backup_path)
         backup_vault.unlock(self._password)
         if self.path.exists() and not restoring_internal_backup:
-            shutil.copy2(self.path, self.backup_path)
+            shutil.copy(self.path, self.backup_path)
             _secure_chmod(self.backup_path, 0o600)
         shutil.copy2(backup_path, self.path)
         _secure_chmod(self.path, 0o600)
@@ -102,6 +102,8 @@ class Vault:
             raise VaultFormatError("Vault file does not exist.")
         try:
             raw = json.loads(self.load_path.read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                raise VaultFormatError("Vault file must contain a JSON object.")
             header = raw.get("header", {})
             payload = raw.get("payload")
             if not isinstance(header, dict) or not isinstance(payload, str):
@@ -114,13 +116,16 @@ class Vault:
             key = derive_key(password, salt, kdf)
             plaintext = decrypt_json_bytes(ciphertext, key, nonce)
             data = json.loads(plaintext.decode("utf-8"))
+            if not isinstance(data, dict):
+                raise VaultFormatError("Vault payload must contain a JSON object.")
+            model = VaultModel.from_json_dict(data)
         except DecryptionError as exc:
             raise InvalidPasswordError("Incorrect password or corrupted vault.") from exc
         except VaultFormatError:
             raise
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise VaultFormatError("Vault file is malformed.") from exc
-        self.model = VaultModel.from_json_dict(data)
+        self.model = model
         self._password = password
         self.load_path = self.path
 
@@ -182,12 +187,12 @@ class Vault:
         had_existing_vault = self.path.exists()
         try:
             if had_existing_vault:
-                shutil.copy2(self.path, self.backup_path)
+                shutil.copy(self.path, self.backup_path)
                 _secure_chmod(self.backup_path, 0o600)
             temp_path.replace(self.path)
             _secure_chmod(self.path, 0o600)
             if not had_existing_vault:
-                shutil.copy2(self.path, self.backup_path)
+                shutil.copy(self.path, self.backup_path)
                 _secure_chmod(self.backup_path, 0o600)
         except Exception:
             temp_path.unlink(missing_ok=True)

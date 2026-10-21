@@ -4,7 +4,7 @@ import base64
 from datetime import datetime
 from pathlib import Path
 
-from PyQt6.QtCore import QPropertyAnimation, Qt, pyqtSignal
+from PyQt6.QtCore import QPropertyAnimation, QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QComboBox,
@@ -303,7 +303,11 @@ class KeysPanel(QWidget):
         scroll.setWidget(self.list_widget)
         root.addWidget(scroll, 1)
 
-        self.search.textChanged.connect(self.refresh)
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(120)
+        self._search_timer.timeout.connect(self.refresh)
+        self.search.textChanged.connect(lambda: self._search_timer.start())
         self.sort_combo.currentIndexChanged.connect(self.refresh)
         self.refresh()
 
@@ -330,6 +334,7 @@ class KeysPanel(QWidget):
         projects = self._filtered_projects()
         key_count = sum(len(project.keys) for project in projects)
         self.count_label.setText(f"{len(projects)} projects · {key_count} keys")
+        animate = len(projects) <= 20
         for project in projects:
             card = ProjectCard(project)
             card.edit_requested.connect(self.edit_project)
@@ -340,11 +345,12 @@ class KeysPanel(QWidget):
             card.export_key_requested.connect(self.export_role_key)
             card.copy_text_requested.connect(self._copy_text)
             self.list_layout.insertWidget(self.list_layout.count() - 1, card)
-            animation = QPropertyAnimation(card, b"windowOpacity", self)
-            animation.setDuration(120)
-            animation.setStartValue(0.0)
-            animation.setEndValue(1.0)
-            animation.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
+            if animate:
+                animation = QPropertyAnimation(card, b"windowOpacity", self)
+                animation.setDuration(120)
+                animation.setStartValue(0.0)
+                animation.setEndValue(1.0)
+                animation.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
 
     def add_project(self) -> None:
         dialog = ProjectEditorDialog(self)

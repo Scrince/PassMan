@@ -37,10 +37,11 @@ gitignored and is not required for application builds. Packaging uses only
 Common prerequisites
 --------------------
 
-  - Python 3.12 or newer recommended (3.11+ may work; test before release)
+  - Python 3.12 or newer is recommended; Python 3.14 is validated in the current development environment
   - pip
   - A desktop stack capable of installing PyQt6 wheels for the host
   - Network access once to install requirements (or a pre-seeded wheel cache)
+  - Windows installer builds also require Inno Setup 6 or newer
 
 From the repository root:
 
@@ -112,7 +113,7 @@ Prerequisites:
 
   - macOS 11+ recommended
   - Xcode Command Line Tools (`xcode-select --install`) for codesign/hdiutil
-  - Python 3.12+ with a matching architecture for the target you want
+  - Python 3.12 or newer with a matching architecture for the target you want; Python 3.14 is validated in the current development environment
 
 Build native architecture (run on macOS):
 
@@ -171,8 +172,25 @@ Windows build (for reference)
 
 Outputs:
 
-  dist/PassMan-<version>.exe
-  release/v<version>/windows/PassMan.exe
+  dist/PassMan-<version>.exe                 PyInstaller build output
+  dist/PassMan-Setup-<version>.exe           Windows setup installer
+  release/v<version>/windows/PassMan.exe     Versioned release copy
+  release/v<version>/windows/PassMan-Setup-<version>.exe
+
+The setup installer places PassMan under Program Files, creates a Start Menu
+shortcut, and offers an optional desktop shortcut. It leaves the user's vault
+under %LOCALAPPDATA%\PassMan in place when the app is uninstalled.
+
+The release copy is made from the dist output. They contain the same bytes;
+the release copy is the artifact listed in the Windows and aggregate checksum
+manifests. Each executable has its own detached signature file.
+
+Windows release verification instructions and the current executable hash are
+maintained in `docs/WindowsRelease.txt`.
+
+The Windows build limits PyInstaller's DLL search path to Python and Windows
+system directories. This prevents unrelated DLLs from other desktop tools from
+being copied into the executable and shadowing the Windows Universal CRT.
 
 
 Release signing (all platforms)
@@ -190,6 +208,7 @@ signed per-OS SHA256SUMS manifest. The public aggregate lives in docs/.
     release/v1.0.0/macos/PassMan-macOS-x64.dmg
     release/v1.0.0/macos/PassMan-macOS-universal.dmg
     release/v1.0.0/windows/PassMan.exe
+    release/v1.0.0/windows/PassMan-Setup-1.0.0.exe
 
   Do not PGP-sign vault.dat, vault.dat.bak, or other runtime data that may sit
   beside packages. Sign only distributable application artifacts.
@@ -209,11 +228,16 @@ signed per-OS SHA256SUMS manifest. The public aggregate lives in docs/.
     # checksum only the packages (not *.asc, not vault data)
     shasum -a 256 PassMan-macOS-*.dmg > SHA256SUMS
     # Linux:  shasum -a 256 PassMan-linux-x64.tar.gz PassMan-linux-x64.deb > SHA256SUMS
-    # Windows: shasum -a 256 PassMan.exe > SHA256SUMS
+    # Windows: shasum -a 256 PassMan.exe PassMan-Setup-1.0.0.exe > SHA256SUMS
 
     gpg --local-user 88DF58F75DBCCA4DD0A3096C69A83CFF7D6FB86B \
         --detach-sign --armor SHA256SUMS
     for f in PassMan-macOS-*.dmg; do
+      gpg --local-user 88DF58F75DBCCA4DD0A3096C69A83CFF7D6FB86B \
+          --detach-sign --armor "$f"
+    done
+    # Windows: sign both the standalone app and setup installer.
+    for f in PassMan.exe PassMan-Setup-1.0.0.exe; do
       gpg --local-user 88DF58F75DBCCA4DD0A3096C69A83CFF7D6FB86B \
           --detach-sign --armor "$f"
     done
@@ -231,6 +255,12 @@ signed per-OS SHA256SUMS manifest. The public aggregate lives in docs/.
     gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
     cd release/v1.0.0/linux && shasum -a 256 -c SHA256SUMS
     gpg --verify PassMan-linux-x64.tar.gz.asc PassMan-linux-x64.tar.gz
+
+After rebuilding an artifact, regenerate and sign its per-OS checksum
+manifest, replace that artifact's detached signature, update the matching
+entry in `docs/SHA256SUMS`, then sign the aggregate manifest again. Verify the
+artifact signatures, per-OS manifests, and aggregate manifest before
+publishing. Runtime vault files must not be included in release manifests.
 
 Public key for verifiers:
 

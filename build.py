@@ -79,6 +79,28 @@ def release_dir(os_name: str) -> Path:
     return ROOT / "release" / f"v{APP_VERSION}" / os_name
 
 
+def find_inno_compiler() -> Path | None:
+    compiler = shutil.which("ISCC.exe") or shutil.which("ISCC")
+    if compiler:
+        return Path(compiler)
+
+    roots = []
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if local_app_data:
+        roots.append(Path(local_app_data) / "Programs")
+    for name in ("ProgramFiles", "ProgramFiles(x86)"):
+        value = os.environ.get(name)
+        if value:
+            roots.append(Path(value))
+
+    for root in roots:
+        for folder in ("Inno Setup 7", "Inno Setup 6"):
+            candidate = root / folder / "ISCC.exe"
+            if candidate.exists():
+                return candidate
+    return None
+
+
 def ensure_core_assets() -> None:
     required = [ENTRY, ICON_PNG]
     missing = [str(path) for path in required if not path.exists()]
@@ -112,7 +134,7 @@ def pyinstaller_cli(name: str, extra: list[str] | None = None) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def build_windows() -> int:
+def build_windows(*, package: bool = True) -> int:
     if host_platform() != "windows":
         return die("Windows builds must be produced on Windows.")
 
@@ -125,7 +147,17 @@ def build_windows() -> int:
         build_name,
         ["--onefile", "--icon", str(ICON_ICO)],
     )
-    result = run(command)
+    build_env = os.environ.copy()
+    windows_dir = Path(os.environ.get("WINDIR", r"C:\Windows"))
+    path_entries = [
+        str(Path(sys.executable).resolve().parent),
+        str(Path(sys.executable).resolve().parent / "Scripts"),
+        str(windows_dir / "System32"),
+        str(windows_dir),
+        str(windows_dir / "System32" / "Wbem"),
+    ]
+    build_env["PATH"] = os.pathsep.join(path_entries)
+    result = run(command, env=build_env)
     if result != 0:
         return result
 
@@ -133,11 +165,37 @@ def build_windows() -> int:
     if not built_exe.exists():
         return die(f"Build finished but executable was not found: {built_exe}")
 
+    from PyInstaller.archive.readers import CArchiveReader
+
+    if "ucrtbase.dll" in CArchiveReader(str(built_exe)).toc:
+        return die("Windows build contains an app-local ucrtbase.dll that can prevent Qt from loading.")
+
     out = release_dir("windows")
     out.mkdir(parents=True, exist_ok=True)
     release_exe = out / f"{APP_NAME}.exe"
     shutil.copy2(built_exe, release_exe)
     print(f"Release executable: {release_exe}")
+
+    if not package:
+        return 0
+
+    installer_script = ROOT / "installer" / "PassMan.iss"
+    if not installer_script.exists():
+        return die(f"Missing Windows installer script: {installer_script}")
+    iscc = find_inno_compiler()
+    if iscc is None:
+        return die("Windows installer packaging requires Inno Setup 6 or 7 (ISCC.exe). Install Inno Setup or use --skip-package.")
+
+    result = run([str(iscc), f"/DAppVersion={APP_VERSION}", str(installer_script)])
+    if result != 0:
+        return result
+
+    built_installer = DIST_DIR / f"PassMan-Setup-{APP_VERSION}.exe"
+    if not built_installer.exists():
+        return die(f"Installer build finished but setup executable was not found: {built_installer}")
+    release_installer = out / built_installer.name
+    shutil.copy2(built_installer, release_installer)
+    print(f"Release installer: {release_installer}")
     return 0
 
 
@@ -502,7 +560,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--skip-package",
         action="store_true",
-        help="Run PyInstaller only; skip tar.gz/.deb/.dmg packaging steps.",
+        help="Run PyInstaller only; skip archive, disk-image, and Windows installer packaging.",
     )
     return parser.parse_args(argv)
 
@@ -520,7 +578,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  package steps : {package}")
 
     if target == "windows":
-        return build_windows()
+        return build_windows(package=package)
     if target == "linux":
         return build_linux(package=package)
     if target == "macos":

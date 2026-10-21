@@ -69,23 +69,32 @@ class VaultModel:
 
     @classmethod
     def from_json_dict(cls, data: dict[str, object]) -> "VaultModel":
-        raw_entries = data.get("entries", [])
+        if not isinstance(data, dict):
+            raise ValueError("Vault payload must be a JSON object.")
+
+        def records(name: str) -> list[dict[str, object]]:
+            raw = data.get(name, [])
+            if not isinstance(raw, list):
+                raise ValueError(f"Vault field '{name}' must be a list.")
+            return [item for item in raw if isinstance(item, dict)]
+
+        raw_entries = records("entries")
         entries = [Entry.from_dict(item) for item in raw_entries if isinstance(item, dict)]
-        raw_projects = data.get("key_projects", [])
+        raw_projects = records("key_projects")
         key_projects = [
             KeyProject.from_dict(item) for item in raw_projects if isinstance(item, dict)
         ]
-        raw_authenticators = data.get("authenticator_entries", [])
+        raw_authenticators = records("authenticator_entries")
         authenticator_entries = [
             AuthenticatorEntry.from_dict(item)
             for item in raw_authenticators
             if isinstance(item, dict)
         ]
-        raw_recovery = data.get("recovery_entries", [])
+        raw_recovery = records("recovery_entries")
         recovery_entries = [
             RecoveryEntry.from_dict(item) for item in raw_recovery if isinstance(item, dict)
         ]
-        raw_seeds = data.get("seed_entries", [])
+        raw_seeds = records("seed_entries")
         seed_entries = [SeedEntry.from_dict(item) for item in raw_seeds if isinstance(item, dict)]
         settings = VaultSettings.from_dict(data.get("settings"))
         return cls(

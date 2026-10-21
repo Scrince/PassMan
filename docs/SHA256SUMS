@@ -1,5 +1,5 @@
 # PassMan v1.0.0 release checksums
-# Generated 2026-07-18T02:12Z
+# Generated 2026-10-17T20:05Z
 # Signed with PassMan Release Signing (2026) <release@passman.local>
 # Fingerprint: 7858 E51C 98AD 2541 5098  9EF3 1F4D F0EB 1C80 C710
 
@@ -13,4 +13,5 @@ b61a100b232bb0cdab9a59b2d33bbe0bc5401af625675cf577c018c3da73fad3  release/v1.0.0
 02456da0bc4db57639e4aa8a2cac3e60503b7ce03026c6b8cf2c18bf5ba23b05  release/v1.0.0/macos/PassMan-macOS-universal.dmg
 
 # windows
-bda13f1dd074bd125fc1a25e51d3ec2abf59a3a4aa642c6c37949f647547aacf  release/v1.0.0/windows/PassMan.exe
+f7db10819db4ff7ea3dffb3a3d548f7c6b224fc8f4e85c58c61a2be3aa0f6455  release/v1.0.0/windows/PassMan.exe
+2b5f8c6315b18ebf49d9590da99f279499f726301c6920869c5e49e0820987bc  release/v1.0.0/windows/PassMan-Setup-1.0.0.exe

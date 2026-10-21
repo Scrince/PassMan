@@ -428,7 +428,7 @@ def _load_text_file(parent: QWidget, title: str, file_filter: str) -> str | None
         return None
     try:
         return Path(path_name).read_text(encoding="utf-8")
-    except OSError as exc:
+    except (OSError, UnicodeError) as exc:
         QMessageBox.warning(parent, "Import failed", f"Could not read file:\n{exc}")
         return None
 

@@ -127,8 +127,8 @@ class PassManApp:
         return True
 
     def unlock_or_create(self) -> bool:
-        creating = not self.vault.exists()
         while True:
+            creating = not self.vault.exists()
             dialog = PasswordDialog(creating)
             if dialog.exec() != QDialog.DialogCode.Accepted:
                 return False
@@ -152,6 +152,9 @@ class PassManApp:
                     return True
                 QMessageBox.warning(None, "Unlock failed", "Vault is corrupted and no usable backup was found.")
                 continue
+            except OSError as exc:
+                QMessageBox.warning(None, "Vault unavailable", f"Could not read or write the vault:\n{exc}")
+                continue
             self.apply_vault_theme()
             self.show_main_window()
             return True
@@ -164,6 +167,9 @@ class PassManApp:
             backup_vault.unlock(password)
         except VaultError:
             return False
+        except OSError as exc:
+            QMessageBox.warning(None, "Backup unavailable", f"Could not read the backup vault:\n{exc}")
+            return False
         answer = QMessageBox.question(
             None,
             "Restore backup?",
@@ -172,8 +178,12 @@ class PassManApp:
         )
         if answer != QMessageBox.StandardButton.Yes:
             return False
-        self.vault.restore_backup()
-        self.vault.unlock(password)
+        try:
+            self.vault.restore_backup()
+            self.vault.unlock(password)
+        except (VaultError, OSError) as exc:
+            QMessageBox.warning(None, "Restore failed", f"Could not restore the backup:\n{exc}")
+            return False
         return True
 
     def show_main_window(self) -> None:

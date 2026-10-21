@@ -1,11 +1,20 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from pathlib import Path
+
+try:
+    ROOT = Path(SPECPATH).resolve()
+except NameError:
+    ROOT = Path(__file__).resolve().parent
+
+SRC = ROOT / 'src'
+ASSETS = SRC / 'assets'
 
 a = Analysis(
-    ['T:\\PassMan\\src\\main.py'],
-    pathex=['T:\\PassMan\\src'],
+    [str(SRC / 'main.py')],
+    pathex=[str(SRC)],
     binaries=[],
-    datas=[('T:\\PassMan\\src\\assets\\passman_icon.png', 'assets')],
+    datas=[(str(ASSETS / 'passman_icon.png'), 'assets')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -35,5 +44,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['T:\\PassMan\\src\\assets\\passman_icon.ico'],
+    icon=[str(ASSETS / 'passman_icon.ico')],
 )

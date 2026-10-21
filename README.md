@@ -60,7 +60,16 @@ On macOS packaged builds:
 ~/Library/Application Support/PassMan/vault.dat
 ```
 
-On Windows packaged builds, the app uses the executable folder.
+On Windows packaged builds:
+
+```text
+%LOCALAPPDATA%\PassMan\vault.dat
+```
+
+On Windows, if `vault.dat` or `vault.dat.bak` is present beside the executable,
+PassMan uses that directory for the vault and its automatic backup before
+checking `%LOCALAPPDATA%\PassMan`. If neither file is beside the executable,
+the location above remains the default.
 
 If no `vault.dat` exists at the usual location on startup, PassMan offers to load an existing
 `vault.dat` or `vault.dat.bak` from another folder. When an existing vault is selected, future
@@ -71,7 +80,7 @@ PassMan creates a new `vault.dat` and `vault.dat.bak` at the usual location.
 
 Requirements:
 
-- Python 3.12 or newer recommended
+- Python 3.12 or newer is recommended; Python 3.14 is validated in the current development environment
 - `pip`
 - A desktop environment capable of running PyQt6
 
@@ -107,21 +116,22 @@ python build.py --platform macos --arch arm64
 python build.py --platform macos --arch x86_64
 python build.py --platform macos --arch universal2
 
-# Windows → single-file .exe
+# Windows → standalone .exe plus setup installer (Inno Setup 6 or newer)
 python build.py --platform windows
 
-# PyInstaller only (skip tar/deb/dmg packaging)
+# PyInstaller only (skip archive, disk-image, and installer packaging)
 python build.py --skip-package
 ```
 
 Full prerequisites, library notes, signing, and troubleshooting: `docs/Build.txt`.
 
-Generated build and release outputs are intentionally ignored by git:
+Build outputs are ignored. The signed Windows installer and its verification
+files are retained in the repo; other generated release artifacts are ignored:
 
 ```text
 build/
 dist/
-release/
+release/ (except release/v1.0.0/windows/PassMan-Setup-1.0.0.exe and signatures)
 .venv/
 .venv-*/
 ```
@@ -132,6 +142,8 @@ The prepared release set includes:
 
 ```text
 release/v1.0.0/windows/PassMan.exe
+release/v1.0.0/windows/PassMan-Setup-1.0.0.exe
+release/v1.0.0/windows/PassMan-Setup-1.0.0.exe.asc
 release/v1.0.0/macos/PassMan-macOS-x64.dmg
 release/v1.0.0/macos/PassMan-macOS-arm64.dmg
 release/v1.0.0/macos/PassMan-macOS-universal.dmg
@@ -145,7 +157,7 @@ Final release artifacts are organized by version and operating system:
 
 ```text
 release/v1.0.0/
-  windows/               Windows executable, signature, and checksum manifest
+  windows/               Windows executable and signed setup installer
   macos/                 Intel, Apple Silicon, and universal DMGs with signatures
   linux/                 tar.gz and deb packages with signatures
 docs/
@@ -155,14 +167,16 @@ docs/
   SHA256SUMS.asc         Detached signature for the aggregate checksum manifest
   LinuxRelease.txt       Linux package verification notes
   MacOSRelease.txt       macOS DMG verification notes
+  WindowsRelease.txt    Windows executable verification notes
   Build.txt              Packaging + re-signing procedure
 ```
 
 ## Verify Releases
 
-Every packaged application (Linux tar.gz/deb, macOS DMGs, Windows exe) ships
-with a detached OpenPGP signature (`.asc`) from the PassMan release-signing
-key and is listed in a per-OS `SHA256SUMS` plus the aggregate `docs/SHA256SUMS`.
+Every packaged application (Linux tar.gz/deb, macOS DMGs, Windows exe and
+setup installer) ships with a detached OpenPGP signature (`.asc`) from the
+PassMan release-signing key and is listed in a per-OS `SHA256SUMS` plus the
+aggregate `docs/SHA256SUMS`.
 
 Public key:
 
@@ -191,11 +205,15 @@ Verify a detached package signature:
 gpg --verify PassMan-linux-x64.tar.gz.asc PassMan-linux-x64.tar.gz
 gpg --verify PassMan-macOS-universal.dmg.asc PassMan-macOS-universal.dmg
 gpg --verify PassMan.exe.asc PassMan.exe
+gpg --verify PassMan-Setup-1.0.0.exe.asc PassMan-Setup-1.0.0.exe
 ```
 
 How to re-sign after a rebuild is documented in `docs/Build.txt` (Release
 signing). Platform notes: `docs/LinuxRelease.txt`, `docs/MacOSRelease.txt`,
 and `docs/OpSec.txt`.
+
+Windows release artifact details, checksum, and verification commands are in
+`docs/WindowsRelease.txt`.
 
 ## Local Code-Signing Certificate
 
@@ -252,6 +270,7 @@ src/
 build.py                  Cross-platform PyInstaller packaging script
 requirements.txt          Python dependencies
 PassMan.spec              Portable PyInstaller spec (macOS .app + onedir)
+installer/PassMan.iss     Windows setup installer definition
 docs/Build.txt            Linux/macOS/Windows build instructions
 ```
 
@@ -262,7 +281,7 @@ The repository is configured to ignore:
 - Virtual environments
 - Python caches
 - PyInstaller build output
-- Release artifacts
+- Release artifacts except the signed Windows setup installer
 - Local vault files
 - macOS AppleDouble metadata
 - Private GPG key material

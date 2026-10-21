@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PyQt6.QtCore import QPropertyAnimation, Qt, pyqtSignal
+from PyQt6.QtCore import QPropertyAnimation, QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QComboBox,
@@ -209,12 +209,33 @@ class SeedWordGrid(QWidget):
         if len(parts) > 1:
             # Full 12/24-word paste replaces the entire grid so no stale slots remain.
             if len(parts) in ALLOWED_WORD_COUNTS:
+                if len(parts) != len(self._fields):
+                    field.clear()
+                    QMessageBox.warning(
+                        self,
+                        "Seed length mismatch",
+                        f"This grid has {len(self._fields)} slots. "
+                        "Select the matching word count or paste the full phrase "
+                        "in the full-phrase box.",
+                    )
+                    self.words_changed.emit()
+                    return
                 self.set_phrase(" ".join(parts))
                 return
             try:
                 start = self._fields.index(field)
             except ValueError:
                 start = 0
+            if start + len(parts) > len(self._fields):
+                field.clear()
+                QMessageBox.warning(
+                    self,
+                    "Too many words",
+                    "There are not enough remaining seed slots for this paste. "
+                    "Paste the complete phrase in the full-phrase box instead.",
+                )
+                self.words_changed.emit()
+                return
             last_written = start - 1
             for offset, word in enumerate(parts):
                 target = start + offset
@@ -412,9 +433,13 @@ class SeedEditorDialog(ResizableDialog):
             return
         words = seed_word_list(text)
         expected = self._expected_count()
-        if len(words) not in ALLOWED_WORD_COUNTS and len(words) != expected:
-            # Still apply, but warn if count is wrong.
-            pass
+        if len(words) not in ALLOWED_WORD_COUNTS:
+            QMessageBox.warning(
+                self,
+                "Invalid seed length",
+                f"Expected a 12- or 24-word phrase, but found {len(words)} words.",
+            )
+            return
         if len(words) in ALLOWED_WORD_COUNTS and len(words) != expected:
             idx = self.word_count_combo.findData(len(words))
             if idx >= 0:
@@ -703,7 +728,11 @@ class SeedPanel(QWidget):
         scroll.setWidget(self.list_widget)
         root.addWidget(scroll, 1)
 
-        self.search.textChanged.connect(self.refresh)
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(120)
+        self._search_timer.timeout.connect(self.refresh)
+        self.search.textChanged.connect(lambda: self._search_timer.start())
         self.sort_combo.currentIndexChanged.connect(self.refresh)
         self.refresh()
 
@@ -725,6 +754,7 @@ class SeedPanel(QWidget):
                 widget.deleteLater()
         entries = self._filtered()
         self.count_label.setText(f"{len(entries)} seed entr{'y' if len(entries) == 1 else 'ies'}")
+        animate = len(entries) <= 20
         for entry in entries:
             card = SeedCard(entry)
             card.copy_seed_requested.connect(self._copy_seed)
@@ -733,11 +763,12 @@ class SeedPanel(QWidget):
             card.delete_requested.connect(self.delete_entry)
             card.view_requested.connect(self.view_entry)
             self.list_layout.insertWidget(self.list_layout.count() - 1, card)
-            animation = QPropertyAnimation(card, b"windowOpacity", self)
-            animation.setDuration(120)
-            animation.setStartValue(0.0)
-            animation.setEndValue(1.0)
-            animation.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
+            if animate:
+                animation = QPropertyAnimation(card, b"windowOpacity", self)
+                animation.setDuration(120)
+                animation.setStartValue(0.0)
+                animation.setEndValue(1.0)
+                animation.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
 
     def add_entry(self) -> None:
         dialog = SeedEditorDialog(self)

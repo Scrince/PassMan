@@ -334,10 +334,19 @@ class BackupWindow(ResizableDialog):
         backup_path = Path(backup_name)
         if backup_path.suffix.lower() != ".dat":
             backup_path = backup_path.with_suffix(".dat")
-        if backup_path.resolve() == self.vault.path.resolve():
+        try:
+            is_active_vault = backup_path.resolve() == self.vault.path.resolve()
+        except OSError as exc:
+            QMessageBox.warning(self, "Backup failed", f"Could not access the selected path:\n{exc}")
+            return
+        if is_active_vault:
             QMessageBox.warning(self, "Choose another location", "Choose a different folder or drive for the backup.")
             return
-        shutil.copy2(self.vault.path, backup_path)
+        try:
+            shutil.copy2(self.vault.path, backup_path)
+        except OSError as exc:
+            QMessageBox.warning(self, "Backup failed", f"Could not write the backup:\n{exc}")
+            return
         QMessageBox.information(self, "Backup created", f"Encrypted backup saved to:\n{backup_path}")
 
     def restore_backup(self) -> None:
@@ -350,7 +359,12 @@ class BackupWindow(ResizableDialog):
         if not backup_name:
             return
         backup_path = Path(backup_name)
-        if backup_path.resolve() == self.vault.path.resolve():
+        try:
+            is_active_vault = backup_path.resolve() == self.vault.path.resolve()
+        except OSError as exc:
+            QMessageBox.warning(self, "Restore failed", f"Could not access the selected path:\n{exc}")
+            return
+        if is_active_vault:
             QMessageBox.warning(self, "Choose another file", "Choose a backup vault.dat from another folder or drive.")
             return
         answer = QMessageBox.question(
@@ -363,7 +377,7 @@ class BackupWindow(ResizableDialog):
             return
         try:
             self.vault.restore_from_file(backup_path)
-        except (InvalidPasswordError, VaultError) as exc:
+        except (InvalidPasswordError, VaultError, OSError) as exc:
             QMessageBox.warning(self, "Restore failed", str(exc))
             return
         self.restored_callback()
@@ -548,6 +562,13 @@ class MainWindow(ResizableMainWindow):
         vault_layout.addWidget(scroll, 1)
         self.content_stack.addWidget(vault_page)
 
+        self._entry_cards: dict[str, EntryCard] = {}
+        self._visible_entry_ids: tuple[str, ...] = ()
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(120)
+        self._search_timer.timeout.connect(self.refresh_entries)
+
         # --- Project keys page (independent of password entries) ---
         keys_page = QWidget()
         keys_page_layout = QVBoxLayout(keys_page)
@@ -589,7 +610,7 @@ class MainWindow(ResizableMainWindow):
         self.content_stack.addWidget(seed_page)
 
         self.mode_group.idClicked.connect(self._switch_mode)
-        self.search.textChanged.connect(self.refresh_entries)
+        self.search.textChanged.connect(lambda: self._search_timer.start())
         self.sort_combo.currentIndexChanged.connect(self.refresh_entries)
         self.refresh_entries()
         self.reset_auto_lock_timer()
@@ -612,7 +633,7 @@ class MainWindow(ResizableMainWindow):
             self.refresh_entries()
             self.statusBar().showMessage("Vault", 1500)
 
-    def eventFilter(self, obj, event) -> bool:              
+    def eventFilter(self, obj, event) -> bool:
         if event.type() in {
             QEvent.Type.MouseButtonPress,
             QEvent.Type.KeyPress,
@@ -642,25 +663,37 @@ class MainWindow(ResizableMainWindow):
         return sorted(matching_entries, key=lambda entry: (entry.name.lower(), entry.type.lower()))
 
     def refresh_entries(self) -> None:
-        while self.list_layout.count() > 1:
-            item = self.list_layout.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
         entries = self._filtered_entries()
+        entry_ids = tuple(entry.id for entry in entries)
         self.count_label.setText(f"{len(entries)} entries")
-        for entry in entries:
-            card = EntryCard(entry)
-            card.copy_requested.connect(self.copy_text)
-            card.edit_requested.connect(self.edit_entry)
-            card.delete_requested.connect(self.delete_entry)
-            card.notes_requested.connect(self.edit_notes)
-            self.list_layout.insertWidget(self.list_layout.count() - 1, card)
-            animation = QPropertyAnimation(card, b"windowOpacity", self)
-            animation.setDuration(120)
-            animation.setStartValue(0.0)
-            animation.setEndValue(1.0)
-            animation.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
+        if entry_ids == self._visible_entry_ids:
+            return
+        for entry_id, card in tuple(self._entry_cards.items()):
+            if entry_id not in entry_ids:
+                self.list_layout.removeWidget(card)
+                card.deleteLater()
+                del self._entry_cards[entry_id]
+        for index, entry in enumerate(entries):
+            card = self._entry_cards.get(entry.id)
+            if card is None:
+                card = EntryCard(entry)
+                card.copy_requested.connect(self.copy_text)
+                card.edit_requested.connect(self.edit_entry)
+                card.delete_requested.connect(self.delete_entry)
+                card.notes_requested.connect(self.edit_notes)
+                self._entry_cards[entry.id] = card
+            elif card.entry is not entry:
+                replacement = EntryCard(entry)
+                replacement.copy_requested.connect(self.copy_text)
+                replacement.edit_requested.connect(self.edit_entry)
+                replacement.delete_requested.connect(self.delete_entry)
+                replacement.notes_requested.connect(self.edit_notes)
+                self.list_layout.removeWidget(card)
+                card.deleteLater()
+                card = replacement
+                self._entry_cards[entry.id] = card
+            self.list_layout.insertWidget(index, card)
+        self._visible_entry_ids = entry_ids
 
     def add_entry(self) -> None:
         dialog = AddEntryWindow(self)
@@ -672,6 +705,8 @@ class MainWindow(ResizableMainWindow):
                     item for item in self.vault.model.entries if item.id != entry.id
                 ]
                 return
+            self._entry_cards.pop(entry.id, None)
+            self._visible_entry_ids = ()
             self.refresh_entries()
 
     def edit_entry(self, entry_id: str) -> None:
@@ -690,6 +725,8 @@ class MainWindow(ResizableMainWindow):
             if not self._persist_vault():
                 entry.name, entry.type, entry.fields, entry.notes, entry.modified_at = previous
                 return
+            self._entry_cards.pop(entry.id, None)
+            self._visible_entry_ids = ()
             self.refresh_entries()
 
     def edit_notes(self, entry_id: str) -> None:
@@ -706,6 +743,8 @@ class MainWindow(ResizableMainWindow):
                 entry.notes = previous_notes
                 entry.modified_at = previous_modified
                 return
+            self._entry_cards.pop(entry.id, None)
+            self._visible_entry_ids = ()
             self.refresh_entries()
 
     def delete_entry(self, entry_id: str) -> None:
@@ -719,6 +758,8 @@ class MainWindow(ResizableMainWindow):
             if not self._persist_vault():
                 self.vault.model.entries = previous
                 return
+            self._entry_cards.pop(entry_id, None)
+            self._visible_entry_ids = ()
             self.refresh_entries()
 
     def _entry_by_id(self, entry_id: str) -> Entry | None:
@@ -763,6 +804,16 @@ class MainWindow(ResizableMainWindow):
         BackupWindow(self.vault, self.reload_from_vault_settings, self).exec()
 
     def update_settings(self, debug: bool, auto_lock: int, clipboard_clear: int, theme_name: str) -> None:
+        previous = (
+            self.debug_enabled,
+            self.auto_lock_seconds,
+            self.clipboard_clear_seconds,
+            self.theme_name,
+            self.vault.model.settings.debug_enabled,
+            self.vault.model.settings.auto_lock_seconds,
+            self.vault.model.settings.clipboard_clear_seconds,
+            self.vault.model.settings.theme_name,
+        )
         self.debug_enabled = debug if self.allow_debug_tools else False
         self.auto_lock_seconds = auto_lock
         self.clipboard_clear_seconds = clipboard_clear
@@ -772,6 +823,16 @@ class MainWindow(ResizableMainWindow):
         self.vault.model.settings.clipboard_clear_seconds = self.clipboard_clear_seconds
         self.vault.model.settings.theme_name = self.theme_name
         if not self._persist_vault():
+            (
+                self.debug_enabled,
+                self.auto_lock_seconds,
+                self.clipboard_clear_seconds,
+                self.theme_name,
+                self.vault.model.settings.debug_enabled,
+                self.vault.model.settings.auto_lock_seconds,
+                self.vault.model.settings.clipboard_clear_seconds,
+                self.vault.model.settings.theme_name,
+            ) = previous
             return
         self.app.setStyleSheet(theme_stylesheet(theme_name))
         self.theme_changed.emit(theme_name)
@@ -790,6 +851,8 @@ class MainWindow(ResizableMainWindow):
         if self.debug_panel:
             self.debug_panel.setVisible(self.debug_enabled)
         self.reset_auto_lock_timer()
+        self._entry_cards.clear()
+        self._visible_entry_ids = ()
         self.refresh_entries()
         self.keys_panel.refresh()
         self.auth_panel.refresh()
@@ -843,7 +906,7 @@ class MainWindow(ResizableMainWindow):
                 test.save()
                 test.unlock("test-pass")
                 assert test.model.entries[0].fields["secret"] == "ok"
-        except Exception as exc:                                    
+        except Exception as exc:
             QMessageBox.critical(self, "Crypto test failed", str(exc))
             return
         QMessageBox.information(self, "Crypto test", "Encryption/decryption test passed.")
@@ -858,7 +921,7 @@ class MainWindow(ResizableMainWindow):
                 test.change_password("old-pass", "new-pass")
                 test.unlock("new-pass")
                 assert test.model.entries[0].name == "Password Test"
-        except Exception as exc:                                    
+        except Exception as exc:
             QMessageBox.critical(self, "Password test failed", str(exc))
             return
         QMessageBox.information(self, "Password test", "Password change test passed.")

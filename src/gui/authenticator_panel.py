@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from time import time
 
 from PyQt6.QtCore import QPropertyAnimation, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont
@@ -217,7 +218,7 @@ class ImportAuthenticatorDialog(ResizableDialog):
             return
         try:
             content = Path(path_name).read_text(encoding="utf-8")
-        except OSError as exc:
+        except (OSError, UnicodeError) as exc:
             QMessageBox.warning(self, "Import failed", f"Could not read file:\n{exc}")
             return
         self.text.setPlainText(content)
@@ -389,11 +390,15 @@ class AuthenticatorPanel(QWidget):
         scroll.setWidget(self.list_widget)
         root.addWidget(scroll, 1)
 
-        self.search.textChanged.connect(self.refresh)
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(120)
+        self._search_timer.timeout.connect(self.refresh)
+        self.search.textChanged.connect(lambda: self._search_timer.start())
         self.sort_combo.currentIndexChanged.connect(self.refresh)
 
         self._tick = QTimer(self)
-        self._tick.setInterval(1000)
+        self._tick.setSingleShot(True)
         self._tick.timeout.connect(self._refresh_codes)
         self._tick.start()
 
@@ -428,6 +433,10 @@ class AuthenticatorPanel(QWidget):
         self._cards.clear()
         entries = self._filtered()
         self.count_label.setText(f"{len(entries)} authenticators")
+        if len(entries) > 20:
+            animate = False
+        else:
+            animate = True
         for entry in entries:
             card = AuthenticatorCard(entry)
             card.copy_requested.connect(self._copy_text)
@@ -436,15 +445,21 @@ class AuthenticatorPanel(QWidget):
             card.advance_requested.connect(self.advance_hotp)
             self.list_layout.insertWidget(self.list_layout.count() - 1, card)
             self._cards.append(card)
-            animation = QPropertyAnimation(card, b"windowOpacity", self)
-            animation.setDuration(120)
-            animation.setStartValue(0.0)
-            animation.setEndValue(1.0)
-            animation.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
+            if animate:
+                animation = QPropertyAnimation(card, b"windowOpacity", self)
+                animation.setDuration(120)
+                animation.setStartValue(0.0)
+                animation.setEndValue(1.0)
+                animation.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
 
     def _refresh_codes(self) -> None:
         for card in self._cards:
             card.refresh_code()
+        if self.isVisible():
+            periods = [card.entry.period for card in self._cards if card.entry.type == "totp"]
+            if periods:
+                boundary = min(period - (time() % period) for period in periods)
+                self._tick.start(max(50, int(boundary * 1000) + 10))
 
     def add_entry(self) -> None:
         dialog = AuthenticatorEditorDialog(self)

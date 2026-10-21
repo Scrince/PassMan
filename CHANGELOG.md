@@ -21,8 +21,11 @@ This project follows a simple versioned changelog. Dates use `YYYY-MM-DD`.
 
 ### Changed
 
-- Updated the Windows release executable after the external-vault loading change.
+- Rebuilt the Windows release executable with the seed-paste and vault filesystem error fixes.
 - Refreshed Windows release checksums and detached GPG signatures.
+- Verified the Windows package signature and all per-platform and aggregate release checksums and signatures on 2026-10-17.
+- Reject seed phrase pastes with unsupported word counts instead of silently truncating them.
+- Handle filesystem errors during backup, restore, startup recovery, and vault creation with UI errors instead of uncaught exceptions.
 - Expanded `build.py` into a cross-platform packaging entry point for Windows, Linux (tar.gz + .deb), and macOS (.app + .dmg). See `docs/Build.txt`.
 - Made `PassMan.spec` portable (relative `src/assets/` paths; optional `PASSMAN_TARGET_ARCH`).
 - Frozen macOS builds now store `vault.dat` under `~/Library/Application Support/PassMan` instead of beside the executable.

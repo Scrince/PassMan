@@ -11,13 +11,22 @@ __pycache__/
 # Build and release outputs
 build/
 dist/
-release/
+release/*
+!release/v1.0.0/
+release/v1.0.0/*
+!release/v1.0.0/windows/
+release/v1.0.0/windows/*
+!release/v1.0.0/windows/PassMan-Setup-1.0.0.exe
+!release/v1.0.0/windows/PassMan-Setup-1.0.0.exe.asc
+!release/v1.0.0/windows/SHA256SUMS
+!release/v1.0.0/windows/SHA256SUMS.asc
 # Top-level branding kit only (application icons live under src/assets/).
 /assets/
 *.log
 
 # Local encrypted vault data
 vault.dat
+vault.dat.bak
 vault.dat.*
 
 # Repo-local GPG release keyring: keep private/volatile material out of git.

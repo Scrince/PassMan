@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PyQt6.QtCore import QPropertyAnimation, pyqtSignal
+from PyQt6.QtCore import QPropertyAnimation, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QComboBox,
@@ -295,7 +295,11 @@ class RecoveryPanel(QWidget):
         scroll.setWidget(self.list_widget)
         root.addWidget(scroll, 1)
 
-        self.search.textChanged.connect(self.refresh)
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(120)
+        self._search_timer.timeout.connect(self.refresh)
+        self.search.textChanged.connect(lambda: self._search_timer.start())
         self.sort_combo.currentIndexChanged.connect(self.refresh)
         self.refresh()
 
@@ -317,6 +321,7 @@ class RecoveryPanel(QWidget):
                 widget.deleteLater()
         entries = self._filtered()
         self.count_label.setText(f"{len(entries)} recovery entr{'y' if len(entries) == 1 else 'ies'}")
+        animate = len(entries) <= 20
         for entry in entries:
             card = RecoveryCard(entry)
             card.copy_requested.connect(self._copy_text)
@@ -324,11 +329,12 @@ class RecoveryPanel(QWidget):
             card.delete_requested.connect(self.delete_entry)
             card.view_requested.connect(self.view_entry)
             self.list_layout.insertWidget(self.list_layout.count() - 1, card)
-            animation = QPropertyAnimation(card, b"windowOpacity", self)
-            animation.setDuration(120)
-            animation.setStartValue(0.0)
-            animation.setEndValue(1.0)
-            animation.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
+            if animate:
+                animation = QPropertyAnimation(card, b"windowOpacity", self)
+                animation.setDuration(120)
+                animation.setStartValue(0.0)
+                animation.setEndValue(1.0)
+                animation.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
 
     def add_entry(self) -> None:
         dialog = RecoveryEditorDialog(self)
