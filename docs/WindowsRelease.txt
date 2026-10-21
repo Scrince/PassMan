@@ -1,0 +1,36 @@
+PassMan Windows Release Verification
+====================================
+
+Release: v1.0.0
+Installer: release/v1.0.0/windows/PassMan-Setup-1.0.0.exe
+Signed: 2026-10-18 with the PassMan Release Signing (2026) OpenPGP key
+
+The installer bundles the standalone PassMan executable. It installs under
+Program Files, creates a Start Menu shortcut, and offers an optional desktop
+shortcut. Uninstalling PassMan leaves the user's vault under
+%LOCALAPPDATA%\PassMan untouched.
+
+SHA-256:
+
+  2b5f8c6315b18ebf49d9590da99f279499f726301c6920869c5e49e0820987bc  PassMan-Setup-1.0.0.exe
+
+The installer has a detached ASCII-armored OpenPGP signature:
+
+  release/v1.0.0/windows/PassMan-Setup-1.0.0.exe.asc
+
+The Windows checksum manifest is signed separately, and the installer hash is
+also included in the signed aggregate manifest at docs/SHA256SUMS.
+
+Import the release public key, then verify the signatures and checksum from
+the repository root:
+
+  gpg --import docs/PassMan_Release_Signing_2026_pubkey.asc
+  gpg --verify release/v1.0.0/windows/PassMan-Setup-1.0.0.exe.asc release/v1.0.0/windows/PassMan-Setup-1.0.0.exe
+  gpg --verify release/v1.0.0/windows/SHA256SUMS.asc release/v1.0.0/windows/SHA256SUMS
+  gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
+  Get-FileHash -Algorithm SHA256 release/v1.0.0/windows/PassMan-Setup-1.0.0.exe
+
+The signature verifies release origin and integrity. It is an OpenPGP
+signature, not a Windows Authenticode signature. PassMan's included
+self-signed code-signing certificate is for local experiments and is not a
+publicly trusted publisher certificate.

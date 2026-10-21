@@ -63,7 +63,14 @@ When running as a frozen macOS build:
 
   vault path = HOME / "Library" / "Application Support" / "PassMan" / "vault.dat"
 
-When running as a frozen Windows (or other non-Linux, non-macOS) build:
+When running as a frozen Windows build:
+
+  if vault.dat or vault.dat.bak exists beside sys.executable:
+      vault path = directory containing sys.executable / "vault.dat"
+  else:
+      vault path = LOCALAPPDATA / "PassMan" / "vault.dat"
+
+When running as another frozen platform:
 
   vault path = directory containing sys.executable / "vault.dat"
 
@@ -568,7 +575,8 @@ Automatic backup:
 
   Every save preserves the previous active vault as vault.dat.bak when an
   active vault already exists. On first creation, the new vault is copied to
-  vault.dat.bak after it is written.
+  vault.dat.bak after it is written. The backup file's modified time records
+  when the snapshot was copied; its contents remain the previous saved vault.
 
 Corruption restore path:
 
