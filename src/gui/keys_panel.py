@@ -29,6 +29,7 @@ from crypto.vault import Vault
 from gui.project_editor import ProjectEditorDialog
 from gui.resizable import ResizableDialog
 from models.key_project import GPG_ROLE_CODES, GPG_ROLE_LABELS, GpgKey, KeyProject, normalize_role
+from utils.secure_files import write_private_file
 
 
 class KeyTextViewer(ResizableDialog):
@@ -504,7 +505,7 @@ class KeysPanel(QWidget):
         if path.suffix.lower() != ".key":
             path = path.with_suffix(".key")
         try:
-            path.write_bytes(key.key_file_bytes())
+            write_private_file(path, key.key_file_bytes())
         except Exception as exc:
             QMessageBox.warning(self, "Export failed", f"Could not write file:\n{exc}")
             return

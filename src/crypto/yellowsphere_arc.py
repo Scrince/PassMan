@@ -60,6 +60,7 @@ def export_arc_bytes(mnemonic: str, password: str) -> bytes:
     }
 
     password_bytes = unicodedata.normalize("NFKD", password).encode("utf-8")
+    # ARC's one-pass prehash is a format step; PBKDF2 below is the password KDF.
     password_hash = hashes.Hash(hashes.SHA512())
     password_hash.update(password_bytes)
     key = PBKDF2HMAC(
@@ -178,6 +179,7 @@ def _read_keyfile(path: Path, password: str | None = None) -> bytes:
             nonce = _decode_b64(cipher.get("nonce_b64"), "keyfile nonce", exact_length=12)
             ciphertext = _decode_b64(obj.get("ciphertext_b64"), "keyfile ciphertext")
             password_bytes = unicodedata.normalize("NFKD", password).encode("utf-8")
+            # Preserve the ARC keyfile format's prehash; PBKDF2 below does the stretching.
             password_hash = hashes.Hash(hashes.SHA512())
             password_hash.update(password_bytes)
             key = PBKDF2HMAC(
@@ -217,6 +219,7 @@ def _credential(bundle: dict[str, Any], password: str | None, keyfile_path: Path
         if password is None:
             raise ArcImportError("A password is required to import this .arc file.")
         normalized = unicodedata.normalize("NFKD", password).encode("utf-8")
+        # This format prehash is followed by PBKDF2-HMAC-SHA512 (1,000,000 rounds).
         password_hash = hashes.Hash(hashes.SHA512())
         password_hash.update(normalized)
         material = password_hash.finalize()
