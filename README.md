@@ -145,151 +145,30 @@ python build.py --skip-package
 
 Full prerequisites, library notes, signing, and troubleshooting: `docs/Build.txt`.
 
-Build outputs are ignored. Signed release artifacts for the listed Windows
-releases and the v1.0.2, v1.0.6, and v1.0.7 macOS/Linux releases are retained
-in the repo; other generated release artifacts are ignored:
-
-```text
-build/
-dist/
-release/ (except the signed v1.0.0, v1.0.1, v1.0.2, v1.0.3, v1.0.4, and v1.0.5 Windows
-          artifacts; v1.0.2 macOS, Linux, and Ubuntu artifacts; and v1.0.6/v1.0.7 macOS and Linux artifacts)
-.venv/
-.venv-*/
-```
+Generated build outputs are ignored. The repository retains only the signed
+v1.0.7 release artifacts under `release/v1.0.7/`; release outputs for other
+versions are ignored.
 
 ## Release Artifacts
 
-The v1.0.7 Windows x64 release includes:
+The repository contains the v1.0.7 release set:
 
 ```text
-release/v1.0.7/windows/PassMan.exe
-release/v1.0.7/windows/PassMan.exe.asc
-release/v1.0.7/windows/PassMan-Setup-1.0.7.exe
-release/v1.0.7/windows/PassMan-Setup-1.0.7.exe.asc
-release/v1.0.7/windows/SBOM.cdx.json
-release/v1.0.7/windows/SBOM.cdx.json.asc
-release/v1.0.7/windows/SHA256SUMS
-release/v1.0.7/windows/SHA256SUMS.asc
-```
-
-The v1.0.7 macOS release contains Apple Silicon, Intel, and universal disk
-images. The v1.0.7 Linux release contains x64 tar.gz and Debian packages built
-in Ubuntu 24.04 LTS. All three platform folders include signed packages, a
-CycloneDX SBOM, and signed SHA-256 manifests. See `docs/WindowsRelease.txt`,
-`docs/MacOSRelease-v1.0.7.txt`, and `docs/LinuxRelease-v1.0.7.txt` for
-verification details.
-
-The release includes an SBOM (Software Bill of Materials), a machine-readable
-inventory of the software components and dependency versions used for the
-build. The CycloneDX file helps reviewers check the release's dependencies for
-known security issues. It describes the build environment and contains no
-vault contents, passwords, or other user data.
-
-The previous Linux v1.0.2 release includes native x86-64 and ARM64 tarballs
-and Debian packages:
-
-```text
-release/v1.0.2/linux/PassMan-linux-x64.tar.gz
-release/v1.0.2/linux/PassMan-linux-x64.tar.gz.asc
-release/v1.0.2/linux/PassMan-linux-x64.deb
-release/v1.0.2/linux/PassMan-linux-x64.deb.asc
-release/v1.0.2/linux/PassMan-linux-arm64.tar.gz
-release/v1.0.2/linux/PassMan-linux-arm64.tar.gz.asc
-release/v1.0.2/linux/PassMan-linux-arm64.deb
-release/v1.0.2/linux/PassMan-linux-arm64.deb.asc
-release/v1.0.2/linux/SHA256SUMS
-release/v1.0.2/linux/SHA256SUMS.asc
-```
-
-The Ubuntu 24.04 LTS v1.0.2 release is built in Ubuntu Noble containers for
-x86-64 and ARM64. It has separately named tarballs and Debian packages so the
-Ubuntu-targeted builds are distinct from the generic Debian Linux builds:
-
-```text
-release/v1.0.2/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-x64.tar.gz
-release/v1.0.2/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-x64.tar.gz.asc
-release/v1.0.2/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-x64.deb
-release/v1.0.2/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-x64.deb.asc
-release/v1.0.2/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-arm64.tar.gz
-release/v1.0.2/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-arm64.tar.gz.asc
-release/v1.0.2/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-arm64.deb
-release/v1.0.2/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-arm64.deb.asc
-release/v1.0.2/linux/ubuntu-24.04/SHA256SUMS
-release/v1.0.2/linux/ubuntu-24.04/SHA256SUMS.asc
-```
-
-The previous macOS v1.0.2 release includes Apple Silicon, Intel, and universal2
-disk images:
-
-```text
-release/v1.0.2/macos/PassMan-macOS-arm64.dmg
-release/v1.0.2/macos/PassMan-macOS-arm64.dmg.asc
-release/v1.0.2/macos/PassMan-macOS-x64.dmg
-release/v1.0.2/macos/PassMan-macOS-x64.dmg.asc
-release/v1.0.2/macos/PassMan-macOS-universal.dmg
-release/v1.0.2/macos/PassMan-macOS-universal.dmg.asc
-release/v1.0.2/macos/SHA256SUMS
-release/v1.0.2/macos/SHA256SUMS.asc
-```
-
-The previous v1.0.0 cross-platform artifacts remain available:
-
-```text
-release/v1.0.0/windows/PassMan.exe
-release/v1.0.0/windows/PassMan-Setup-1.0.0.exe
-release/v1.0.0/macos/PassMan-macOS-x64.dmg
-release/v1.0.0/macos/PassMan-macOS-arm64.dmg
-release/v1.0.0/macos/PassMan-macOS-universal.dmg
-release/v1.0.0/linux/PassMan-linux-x64.tar.gz
-release/v1.0.0/linux/PassMan-linux-x64.deb
-```
-
-The macOS universal2 DMG contains both `x86_64` and `arm64` application slices. The v1.0.2 Linux release includes `amd64` and `arm64`; the earlier v1.0.0 Linux release is `amd64`.
-
-Release artifacts are organized by version and operating system. New release
-suites use one top-level platform folder each: `windows/`, `macos/`, and
-`linux/`. Ubuntu-specific Linux packages belong under
-`linux/ubuntu-<version>/`. v1.0.7 is the current release for Windows, macOS,
-and Linux. v1.0.5 and v1.0.1 are previous Windows releases, and v1.0.0
-contains earlier packages for all three operating systems.
-Each packaged application and each platform checksum manifest has an adjacent
-`.asc` detached signature. The checksum manifests list hashes for the packages;
-they do not list hashes of the `.asc` files. The aggregate manifest at
-`docs/SHA256SUMS` covers the release packages and has its own detached signature.
-
-```text
-release/v1.0.5/
-  windows/  PassMan.exe and PassMan-Setup-1.0.5.exe
 release/v1.0.7/
-  macos/    Intel, Apple Silicon, and universal DMGs
-  linux/    x64 tar.gz and Debian packages
-  windows/  PassMan.exe and PassMan-Setup-1.0.7.exe
-release/v1.0.6/
-  macos/    Intel, Apple Silicon, and universal DMGs
-  linux/    x64 tar.gz and Debian packages
-release/v1.0.4/
-  windows/  PassMan.exe and PassMan-Setup-1.0.4.exe
-release/v1.0.3/
-  windows/  PassMan.exe and PassMan-Setup-1.0.3.exe
-release/v1.0.2/
-  windows/  PassMan.exe and PassMan-Setup-1.0.2.exe
-  macos/    Intel, Apple Silicon, and universal2 DMGs
-  linux/    Generic Linux x86-64 and ARM64 packages
-    ubuntu-24.04/ Ubuntu 24.04 LTS packages
-docs/
-  PassMan_Release_Signing_2026_pubkey.asc
-  PassMan_Local_Code_Signing_2026.cer
-  SHA256SUMS             Aggregate checksum manifest for release packages
-  SHA256SUMS.asc         Detached signature for the aggregate manifest
-  LinuxRelease.txt       Generic Linux package verification notes
-  UbuntuRelease.txt      Ubuntu 24.04 package verification notes
-  MacOSRelease.txt       macOS DMG verification notes
-  MacOSRelease-v1.0.7.txt Current macOS release verification notes
-  LinuxRelease-v1.0.7.txt Current Linux release verification notes
-  WindowsRelease.txt     Windows executable verification notes
-  Build.txt              Packaging and re-signing procedure
+  windows/  x64 executable, installer, SBOM, signatures, and checksums
+  macos/    Apple Silicon, Intel, and universal DMGs, SBOM, signatures, and checksums
+  linux/    Ubuntu 24.04 x64 tarball and Debian package, SBOM, signatures, and checksums
 ```
+
+Each platform folder contains a signed `SHA256SUMS` manifest. The aggregate
+`docs/SHA256SUMS` and its detached signature cover the v1.0.7 packages and
+SBOMs. The SBOMs list build dependencies and contain no vault contents or user
+data.
+
+See `docs/WindowsRelease.txt`, `docs/MacOSRelease-v1.0.7.txt`, and
+`docs/LinuxRelease-v1.0.7.txt` for artifact details and verification commands.
+The macOS applications are ad-hoc signed and are not notarized; Gatekeeper may
+warn when opening downloaded builds.
 
 ## Verify Releases
 
@@ -315,7 +194,7 @@ Verify the aggregate manifest, then an OS folder:
 ```bash
 gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
 
-cd release/v1.0.5/windows
+cd release/v1.0.7/windows
 shasum -a 256 -c SHA256SUMS
 ```
 
@@ -324,14 +203,14 @@ Verify a detached package signature:
 ```bash
 gpg --verify PassMan-linux-x64.tar.gz.asc PassMan-linux-x64.tar.gz
 gpg --verify PassMan-macOS-universal.dmg.asc PassMan-macOS-universal.dmg
-gpg --verify release/v1.0.5/windows/PassMan.exe.asc release/v1.0.5/windows/PassMan.exe
-gpg --verify release/v1.0.5/windows/PassMan-Setup-1.0.5.exe.asc release/v1.0.5/windows/PassMan-Setup-1.0.5.exe
-gpg --verify release/v1.0.2/windows/PassMan-Setup-1.0.2.exe.asc release/v1.0.2/windows/PassMan-Setup-1.0.2.exe
+gpg --verify release/v1.0.7/windows/PassMan.exe.asc release/v1.0.7/windows/PassMan.exe
+gpg --verify release/v1.0.7/windows/PassMan-Setup-1.0.7.exe.asc release/v1.0.7/windows/PassMan-Setup-1.0.7.exe
 ```
 
 How to re-sign after a rebuild is documented in `docs/Build.txt` (Release
-signing). Platform notes: `docs/LinuxRelease.txt`, `docs/UbuntuRelease.txt`,
-`docs/MacOSRelease.txt`, and `docs/OpSec.txt`.
+signing). Current platform notes: `docs/WindowsRelease.txt`,
+`docs/LinuxRelease-v1.0.7.txt`, `docs/MacOSRelease-v1.0.7.txt`, and
+`docs/OpSec.txt`.
 
 Windows release artifact details, checksum, and verification commands are in
 `docs/WindowsRelease.txt`.
@@ -403,7 +282,7 @@ The repository is configured to ignore:
 - Virtual environments
 - Python caches
 - PyInstaller build output
-- Release artifacts except the explicitly listed v1.0.2 platform packages and manifests, v1.0.3/v1.0.4/v1.0.5 Windows artifacts, and v1.0.6/v1.0.7 macOS/Linux artifacts
+- Release artifacts except the signed v1.0.7 Windows, macOS, and Linux packages
 - Local vault files
 - macOS AppleDouble metadata
 - Private GPG key material
