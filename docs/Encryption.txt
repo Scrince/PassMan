@@ -27,7 +27,8 @@ Release boundary
 
 The current PassMan vault format is:
 
-  vault version      = 1
+  current write version = 2
+  supported read versions = 1 and 2
   vault filename     = vault.dat
   backup filename    = vault.dat.bak
   cipher             = AES-256-GCM
@@ -111,7 +112,7 @@ The logical document before JSON serialization is:
 
   {
     "header": {
-      "version": 1,
+      "version": 2,
       "algorithm": "AES-256-GCM",
       "salt": "<base64 16 random bytes>",
       "nonce": "<base64 12 random bytes>",
@@ -388,15 +389,22 @@ Default parameters written into every new vault are:
   parallelism = 4
   hash_len    = 32
 
-The exact call is:
+The current implementation sanitizes parameters read from the vault header
+before deriving a key. It forces Argon2id and a 32-byte output, and clamps
+time cost to 1..10, memory cost to 8192..262144 KiB, and parallelism to 1..8.
+The defaults above are used for new vaults. A malformed or extreme header
+cannot request costs beyond these bounds, though the maximum settings can
+still consume substantial resources.
+
+The effective call is:
 
   key = hash_secret_raw(
       secret      = password.encode("utf-8"),
       salt        = decoded 16-byte salt,
-      time_cost   = int(kdf["time_cost"]),
-      memory_cost = int(kdf["memory_cost"]),
-      parallelism = int(kdf["parallelism"]),
-      hash_len    = int(kdf["hash_len"]),
+      time_cost   = int(sanitized_kdf["time_cost"]),
+      memory_cost = int(sanitized_kdf["memory_cost"]),
+      parallelism = int(sanitized_kdf["parallelism"]),
+      hash_len    = 32,
       type        = Type.ID,
   )
 
@@ -407,10 +415,8 @@ The stored kdf.type string is descriptive in the current implementation. The
 derive_key function always invokes Argon2id Type.ID. It does not branch on the
 stored kdf.type value.
 
-The current implementation accepts KDF cost values from the vault file and
-casts them with int(...). A tampered file can therefore force decryption
-failure or request expensive Argon2 work. Treat untrusted vault files as
-potential denial-of-service inputs.
+Treat untrusted vault files as inputs that can still cause unlock failure or
+resource use up to the documented KDF bounds.
 
 
 AES-GCM encryption
@@ -420,20 +426,20 @@ The encryption primitive is:
 
   cryptography.hazmat.primitives.ciphers.aead.AESGCM
 
-The implementation validates:
+For v2 vaults the implementation validates:
 
   len(key) == 32
 
 Then it calls:
 
-  ciphertext_and_tag = AESGCM(key).encrypt(nonce, plaintext, None)
+  ciphertext_and_tag = AESGCM(key).encrypt(nonce, plaintext, canonical_header)
 
 Parameters:
 
   key              = 32-byte Argon2id output
   nonce            = 12 random bytes from os.urandom
   plaintext        = UTF-8 model JSON bytes
-  associated_data  = None
+  associated_data  = UTF-8 canonical JSON of the complete parsed header
   tag length       = 16 bytes, fixed by cryptography AESGCM
 
 The cryptography AESGCM API returns:
@@ -471,16 +477,27 @@ Then it decodes:
 
   salt       = base64_decode(header["salt"])
   nonce      = base64_decode(header["nonce"])
-  kdf        = dict(header["kdf"])
+  raw_kdf    = header.get("kdf")
+  kdf        = sanitize_kdf_params(raw_kdf if isinstance(raw_kdf, dict) else None)
   ciphertext = base64_decode(payload)
 
 Then it derives:
 
   key = derive_key(password, salt, kdf)
 
-Then it calls:
+For version 1 it calls:
 
   plaintext = AESGCM(key).decrypt(nonce, ciphertext, None)
+
+For version 2 it calls:
+
+  plaintext = AESGCM(key).decrypt(
+      nonce, ciphertext, header_associated_data(header)
+  )
+
+header_associated_data serializes the parsed header as JSON with keys sorted
+and separators "," and ":" (no spaces), then encodes the result as UTF-8.
+The exact header object, including additional members, is authenticated.
 
 If AES-GCM authentication fails, cryptography raises InvalidTag. PassMan maps
 that to:
@@ -494,12 +511,14 @@ failure to VaultFormatError unless it is already an InvalidPasswordError.
 Authenticated and unauthenticated bytes
 ---------------------------------------
 
-Authenticated by AES-GCM:
+For v2, authenticated by AES-GCM:
 
   - The encrypted plaintext model bytes.
   - The 16-byte GCM authentication tag over those bytes.
 
-Not authenticated as AES-GCM additional data:
+  - Every parsed header field, serialized canonically as associated data.
+
+For v1, header fields were not authenticated as AES-GCM additional data:
 
   - header.version
   - header.algorithm
@@ -509,25 +528,23 @@ Not authenticated as AES-GCM additional data:
   - payload Base64 text encoding as text
   - outer JSON whitespace and key order
 
-Important consequences:
+V2 consequences:
 
-  1. The header is not supplied to AES-GCM as associated data.
+  1. Any change to a parsed v2 header field causes authentication failure.
 
-  2. Tampering with salt, nonce, or KDF parameters will normally make the wrong
-     AES key or wrong nonce be used, causing GCM authentication failure.
+  2. Outer whitespace and JSON key order do not affect the canonical parsed
+     header, while changing header values does.
 
-  3. Tampering with header.algorithm alone does not affect decryption in the
-     current implementation, because unlock does not check that field before
-     decrypting.
+  3. The reader also requires the supported AES-256-GCM algorithm identifier.
 
-  4. Reformatting outer JSON whitespace does not affect decryption as long as
-     the parsed values are unchanged.
+Legacy migration:
 
-  5. Re-encoding payload Base64 into another valid textual Base64 spelling that
-     decodes to identical bytes does not affect decryption.
+  A v1 file is decrypted using its legacy no-AAD behavior. After a successful
+  normal unlock, PassMan writes v2 atomically and preserves the original v1
+  bytes as vault.dat.bak. Backup validation can disable migration so merely
+  checking a candidate backup never rewrites it.
 
-This design authenticates the secret vault contents, but it does not bind the
-outer metadata into the AEAD transcript as associated data.
+The v2 format authenticates the secret contents and parsed outer header.
 
 
 Atomic write behavior
@@ -545,27 +562,34 @@ Write sequence:
 
        json.dumps(document, indent=2, sort_keys=True)
 
-  3. Create a named temporary file in the same directory:
+  3. Create a binary named temporary file in the same directory:
 
-       NamedTemporaryFile("w", encoding="utf-8", dir=self.path.parent, delete=False)
+       NamedTemporaryFile("wb", dir=self.path.parent, delete=False)
 
-  4. Write serialized text.
+  4. Write the UTF-8 encoded serialized document.
 
   5. Flush Python file object.
 
   6. fsync temporary file descriptor.
 
-  7. If an existing vault is present, copy it to vault.dat.bak with shutil.copy2.
+  7. Secure the temporary file permissions, then, if an existing vault is
+     present and is not being preserved as a loaded source, atomically copy
+     the previous active bytes to vault.dat.bak using a temporary file and
+     os.replace.
 
-  8. Replace active vault path with temp_path.replace(self.path).
+  8. Atomically replace the active vault path with os.replace, then secure
+     the committed file permissions.
 
-  9. If this was the first vault write, copy the new vault to vault.dat.bak.
+  9. If this was the first vault write, or a legacy source must be preserved,
+     atomically copy the committed active vault to vault.dat.bak.
 
   10. If replacement fails, unlink the temporary file when possible and re-raise.
 
-The directory itself is not fsynced after replacement. Filesystems and operating
-systems differ in how much crash consistency this provides for the directory
-entry after power loss.
+On POSIX, PassMan also attempts to fsync the containing directory after each
+replacement. Windows does not use this directory fsync step. The active vault
+directory is set to owner-only permissions where supported. Atomic replacement
+prevents readers from observing a partially written file; hardware failure can
+still affect durability.
 
 
 Backup and restore behavior
@@ -573,10 +597,10 @@ Backup and restore behavior
 
 Automatic backup:
 
-  Every save preserves the previous active vault as vault.dat.bak when an
-  active vault already exists. On first creation, the new vault is copied to
-  vault.dat.bak after it is written. The backup file's modified time records
-  when the snapshot was copied; its contents remain the previous saved vault.
+  Every save atomically preserves the previous active vault as vault.dat.bak
+  when an active vault already exists. On first creation, the new vault is
+  atomically copied to vault.dat.bak after it is written. The backup contains
+  the previous saved vault except on first creation.
 
 Corruption restore path:
 
@@ -603,12 +627,14 @@ Password change behavior
 
 Password change executes:
 
-  1. unlock(old_password)
+  1. Require the vault to be unlocked and verify old_password against the
+     current in-memory master password.
   2. _write_encrypted(current_model, new_password)
   3. self._password = new_password
 
-The change-password operation therefore decrypts with the old password and
-writes a completely new encrypted vault using:
+The change-password operation re-encrypts the current in-memory model without
+reloading the file, preserving unsaved edits. It writes a completely new
+encrypted vault using:
 
   - fresh random salt
   - fresh random nonce
@@ -629,9 +655,9 @@ InvalidPasswordError:
 
 VaultFormatError:
 
-  Raised when the vault file is missing required structure, contains malformed
-  JSON, contains invalid Base64, lacks required fields, or decrypts to malformed
-  model JSON.
+Raised when the vault file is missing required structure, contains malformed
+JSON, contains invalid Base64, lacks required fields, decrypts to malformed
+model JSON, or contains malformed collection records or nested key arrays.
 
 VaultError:
 
@@ -710,7 +736,8 @@ From src/crypto/key_derivation.py:
 
 From src/crypto/vault.py:
 
-  VAULT_VERSION = 1
+  VAULT_VERSION = 2
+  LEGACY_VAULT_VERSION = 1
 
 From src/utils/file_paths.py:
 
@@ -723,7 +750,8 @@ Verification checklist for maintainers
 
 Before claiming compatibility with this document, verify:
 
-  1. encryption.py still uses cryptography AESGCM with associated_data=None.
+  1. New writes use AESGCM with canonical v2 header bytes as associated data;
+     v1 reads use associated_data=None.
 
   2. NONCE_SIZE remains 12.
 
@@ -741,7 +769,7 @@ Before claiming compatibility with this document, verify:
 
   8. Base64 decoding still uses validate=True.
 
-  9. Header fields are still not passed as AES-GCM associated data.
+  9. Every parsed v2 header field is passed as canonical AES-GCM associated data.
 
   10. A changed master password rewrites the vault with fresh salt and nonce.
 
@@ -764,7 +792,7 @@ test vectors:
     },
     "nonce": "base64-12-byte-nonce",
     "salt": "base64-16-byte-salt",
-    "version": 1
+    "version": 2
   },
   "payload": "base64-ciphertext-plus-16-byte-gcm-tag"
 }
