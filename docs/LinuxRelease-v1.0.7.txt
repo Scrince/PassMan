@@ -1,0 +1,69 @@
+PassMan v1.0.7 - Ubuntu 24.04 LTS Linux x64 Release
+===================================================
+
+Build details
+-------------
+
+Built in an Ubuntu 24.04 LTS Docker container for x86-64 / Debian amd64 with
+Python 3.12.3, PyInstaller 6.22.3, PyQt6 / Qt 6.11.0, and cryptography
+50.0.2. The standalone package is a PyInstaller onedir bundle. The Debian
+package is a local installable package, not an APT repository release.
+
+Release artifacts
+-----------------
+
+  PassMan-linux-x64.tar.gz and detached .asc signature
+  PassMan-linux-x64.deb and detached .asc signature
+  SBOM.cdx.json and detached .asc signature
+  SHA256SUMS and detached .asc signature
+
+SHA-256 verification
+--------------------
+
+From this directory:
+
+  sha256sum -c SHA256SUMS
+
+Package hashes:
+
+  5ba5a0d0b521dffb93f89eb81edd4b13dfd7d39a0479d202d3fdcc8aabd90862  PassMan-linux-x64.deb
+  7a6199bff9e5847676ec51216dbd47de3b2df8a978b6840c3cb13759f9f14a5b  PassMan-linux-x64.tar.gz
+  4ccd2e1c9bf073fba76b8df68dc32e76e288671929bf9971d6146731e598fa97  SBOM.cdx.json
+
+OpenPGP verification
+--------------------
+
+Release key identity: PassMan Release Signing (2026) <release@passman.local>
+Primary fingerprint: 7858 E51C 98AD 2541 5098 9EF3 1F4D F0EB 1C80 C710
+
+From the repository root, import the public key and verify the aggregate
+manifest:
+
+  gpg --import docs/PassMan_Release_Signing_2026_pubkey.asc
+  gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
+  sha256sum -c docs/SHA256SUMS
+
+From this directory, verify the platform manifest, packages, and SBOM:
+
+  gpg --verify SHA256SUMS.asc SHA256SUMS
+  gpg --verify PassMan-linux-x64.tar.gz.asc PassMan-linux-x64.tar.gz
+  gpg --verify PassMan-linux-x64.deb.asc PassMan-linux-x64.deb
+  gpg --verify SBOM.cdx.json.asc SBOM.cdx.json
+
+Install the Debian package with:
+
+  sudo apt install ./PassMan-linux-x64.deb
+  passman
+
+Or unpack the standalone tarball and run `./PassMan/PassMan` from the
+extracted directory. The frozen app stores its vault under
+`$XDG_DATA_HOME/PassMan/` or `~/.local/share/PassMan/` when
+`XDG_DATA_HOME` is unset.
+
+Cross-platform release status
+-----------------------------
+
+The v1.0.7 Windows executable, installer, SBOM, and signatures are available
+under `release/v1.0.7/windows/`. The macOS packages are documented in
+`docs/MacOSRelease-v1.0.7.txt`; the Windows build and verification details are
+in `docs/WindowsRelease.txt`.
