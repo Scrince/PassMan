@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 from PyQt6.QtCore import QPropertyAnimation, QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
+    QFileDialog,
     QFormLayout,
     QFrame,
     QGridLayout,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLayout,
     QLineEdit,
@@ -22,6 +27,14 @@ from PyQt6.QtWidgets import (
 )
 
 from crypto.vault import Vault
+from crypto.yellowsphere_arc import (
+    MAX_ARC_BYTES,
+    ArcExportError,
+    ArcImportError,
+    arc_credential_mode,
+    export_arc_file,
+    import_arc_file,
+)
 from gui.project_editor import NoWheelComboBox
 from gui.resizable import ResizableDialog, center_widget_on_screen
 from models.seed import ALLOWED_WORD_COUNTS, SeedEntry, normalize_seed_phrase, seed_word_list
@@ -55,6 +68,55 @@ def _dialog_sizes(word_count: int, *, editor: bool) -> tuple[tuple[int, int], tu
     if editor:
         return (EDITOR_SIZE_24 if is_24 else EDITOR_SIZE_12, EDITOR_MIN_24 if is_24 else EDITOR_MIN_12)
     return (VIEW_SIZE_24 if is_24 else VIEW_SIZE_12, VIEW_MIN_24 if is_24 else VIEW_MIN_12)
+
+
+class ArcExportPasswordDialog(QDialog):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Protect .arc export")
+        self.setMinimumWidth(420)
+        root = QVBoxLayout(self)
+        note = QLabel(
+            "Choose a strong, unique password to encrypt this YellowSphere ARC backup. "
+            "The file contains the seed phrase only; the wallet passphrase, label, and notes are not included."
+        )
+        note.setWordWrap(True)
+        root.addWidget(note)
+        form = QFormLayout()
+        self.password_edit = QLineEdit()
+        self.password_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.password_edit.setPlaceholderText("Export password")
+        self.confirm_edit = QLineEdit()
+        self.confirm_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.confirm_edit.setPlaceholderText("Confirm password")
+        form.addRow("Password", self.password_edit)
+        form.addRow("Confirm", self.confirm_edit)
+        root.addLayout(form)
+        buttons = QHBoxLayout()
+        buttons.addStretch(1)
+        cancel = QPushButton("Cancel")
+        cancel.clicked.connect(self.reject)
+        save = QPushButton("Export")
+        save.setObjectName("PrimaryButton")
+        save.clicked.connect(self._accept_if_valid)
+        buttons.addWidget(cancel)
+        buttons.addWidget(save)
+        root.addLayout(buttons)
+
+    @property
+    def password(self) -> str:
+        return self.password_edit.text()
+
+    def _accept_if_valid(self) -> None:
+        if not self.password:
+            QMessageBox.warning(self, "Password required", "Choose a password for the encrypted .arc file.")
+            return
+        if self.password != self.confirm_edit.text():
+            QMessageBox.warning(self, "Passwords do not match", "Enter the same password in both fields.")
+            self.confirm_edit.clear()
+            self.confirm_edit.setFocus()
+            return
+        self.accept()
 
 
 class SeedWordGrid(QWidget):
@@ -504,6 +566,7 @@ class SeedCard(QFrame):
     edit_requested = pyqtSignal(str)
     delete_requested = pyqtSignal(str)
     view_requested = pyqtSignal(str)
+    export_requested = pyqtSignal(str)
 
     def __init__(self, entry: SeedEntry) -> None:
         super().__init__()
@@ -541,10 +604,12 @@ class SeedCard(QFrame):
         actions = QHBoxLayout()
         view_btn = _action_button("View", "View numbered seed grid")
         copy_seed = _action_button("Copy Seed", "Copy full 12/24-word seed phrase")
+        export_arc = _action_button("Export .arc", "Export an encrypted YellowSphere ARC backup")
         edit_btn = _action_button("Edit", "Edit seed entry")
         delete_btn = _action_button("Delete", "Delete seed entry", danger=True)
         actions.addWidget(view_btn)
         actions.addWidget(copy_seed)
+        actions.addWidget(export_arc)
         if entry.passphrase:
             copy_pp = _action_button("Copy PP", "Copy passphrase")
             copy_pp.clicked.connect(lambda: self.copy_passphrase_requested.emit(entry.passphrase))
@@ -559,6 +624,7 @@ class SeedCard(QFrame):
         copy_seed.clicked.connect(
             lambda: self.copy_seed_requested.emit(normalize_seed_phrase(entry.seed_phrase))
         )
+        export_arc.clicked.connect(lambda: self.export_requested.emit(entry.id))
         edit_btn.clicked.connect(lambda: self.edit_requested.emit(entry.id))
         delete_btn.clicked.connect(lambda: self.delete_requested.emit(entry.id))
 
@@ -707,8 +773,12 @@ class SeedPanel(QWidget):
         add = QPushButton("Add")
         add.setObjectName("PrimaryButton")
         add.clicked.connect(self.add_entry)
+        import_button = QPushButton("Import")
+        import_button.setToolTip("Import a YellowSphere .arc seed backup")
+        import_button.clicked.connect(self.import_arc)
         top.addWidget(self.search, 1)
         top.addWidget(self.sort_combo)
+        top.addWidget(import_button)
         top.addWidget(add)
         root.addLayout(top)
 
@@ -762,6 +832,7 @@ class SeedPanel(QWidget):
             card.edit_requested.connect(self.edit_entry)
             card.delete_requested.connect(self.delete_entry)
             card.view_requested.connect(self.view_entry)
+            card.export_requested.connect(self.export_arc)
             self.list_layout.insertWidget(self.list_layout.count() - 1, card)
             if animate:
                 animation = QPropertyAnimation(card, b"windowOpacity", self)
@@ -784,6 +855,106 @@ class SeedPanel(QWidget):
             return
         self.refresh()
         self.status_message.emit(f"Saved {entry.display_title()}")
+
+    def import_arc(self) -> None:
+        filename, _ = QFileDialog.getOpenFileName(
+            self,
+            "Import YellowSphere seed backup",
+            "",
+            "YellowSphere seed backups (*.arc);;All files (*.*)",
+        )
+        if not filename:
+            return
+        arc_path = Path(filename)
+        try:
+            if arc_path.stat().st_size > MAX_ARC_BYTES:
+                raise ArcImportError("The selected file is too large to be a seed backup.")
+            arc_data = arc_path.read_bytes()
+            mode = arc_credential_mode(arc_data)
+            password = None
+            keyfile_path = None
+            if mode in {"password", "both"}:
+                password, accepted = QInputDialog.getText(
+                    self,
+                    "Decrypt seed backup",
+                    "Enter the password for this .arc file:",
+                    QLineEdit.EchoMode.Password,
+                )
+                if not accepted:
+                    return
+                if not password:
+                    QMessageBox.warning(self, "Seed import failed", "The .arc password cannot be empty.")
+                    return
+            if mode in {"keyfile", "both"}:
+                keyfile, _ = QFileDialog.getOpenFileName(
+                    self,
+                    "Select YellowSphere keyfile",
+                    str(arc_path.parent),
+                    "Keyfiles (*.key);;All files (*.*)",
+                )
+                if not keyfile:
+                    return
+                keyfile_path = Path(keyfile)
+
+            phrase = import_arc_file(arc_path, password=password, keyfile_path=keyfile_path)
+        except ArcImportError as exc:
+            QMessageBox.warning(self, "Seed import failed", str(exc))
+            return
+        except OSError as exc:
+            QMessageBox.warning(self, "Seed import failed", f"Could not read the selected file:\n{exc}")
+            return
+
+        if any(item.seed_phrase == phrase for item in self.vault.model.seed_entries):
+            QMessageBox.information(self, "Seed already exists", "This seed phrase is already stored in the vault.")
+            return
+        entry = SeedEntry(
+            name=arc_path.stem or "YellowSphere seed",
+            word_count=len(seed_word_list(phrase)),
+            seed_phrase=phrase,
+        )
+        entry.mark_modified()
+        self.vault.model.seed_entries.append(entry)
+        if not self._persist():
+            self.vault.model.seed_entries = [
+                item for item in self.vault.model.seed_entries if item.id != entry.id
+            ]
+            return
+        self.refresh()
+        self.status_message.emit(f"Imported {entry.display_title()}")
+
+    def export_arc(self, entry_id: str) -> None:
+        entry = self._by_id(entry_id)
+        if not entry:
+            return
+        if not entry.phrase_matches_word_count():
+            QMessageBox.warning(
+                self,
+                "Invalid seed phrase",
+                "This entry does not contain a complete 12-word or 24-word phrase and cannot be exported.",
+            )
+            return
+        safe_name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", entry.name).strip(" .") or "seed"
+        default_path = Path.home() / f"{safe_name}.arc"
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export encrypted seed backup",
+            str(default_path),
+            "YellowSphere seed backups (*.arc);;All files (*.*)",
+        )
+        if not filename:
+            return
+        output_path = Path(filename)
+        if output_path.suffix.lower() != ".arc":
+            output_path = output_path.with_suffix(".arc")
+        dialog = ArcExportPasswordDialog(self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            export_arc_file(output_path, entry.seed_phrase, dialog.password)
+        except ArcExportError as exc:
+            QMessageBox.warning(self, "Seed export failed", str(exc))
+            return
+        self.status_message.emit(f"Exported encrypted .arc backup for {entry.display_title()}")
 
     def edit_entry(self, entry_id: str) -> None:
         entry = self._by_id(entry_id)
