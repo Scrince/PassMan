@@ -145,25 +145,25 @@ python build.py --skip-package
 
 Full prerequisites, library notes, signing, and troubleshooting: `docs/Build.txt`.
 
-Generated build outputs are ignored. The repository retains only the signed
-v1.0.7 release artifacts under `release/v1.0.7/`; release outputs for other
-versions are ignored.
+Generated build outputs and local release files are ignored. Published
+installers and verification assets are attached to the
+[GitHub Releases page](https://github.com/Scrince/PassMan/releases).
 
 ## Release Artifacts
 
-The repository contains the v1.0.7 release set:
+The v1.0.7 release set is available from the GitHub Releases page:
 
 ```text
-release/v1.0.7/
-  windows/  x64 executable, installer, SBOM, signatures, and checksums
-  macos/    Apple Silicon, Intel, and universal DMGs, SBOM, signatures, and checksums
-  linux/    Ubuntu 24.04 x64 tarball and Debian package, SBOM, signatures, and checksums
+Windows: x64 executable, installer, SBOM, signatures, and checksums
+macOS: Apple Silicon, Intel, and universal DMGs, SBOM, signatures, and checksums
+Linux: Ubuntu 24.04 x64 tarball and Debian package, SBOM, signatures, and checksums
 ```
 
-Each platform folder contains a signed `SHA256SUMS` manifest. The aggregate
-`docs/SHA256SUMS` and its detached signature cover the v1.0.7 packages and
-SBOMs. The SBOMs list build dependencies and contain no vault contents or user
-data.
+Each platform has a signed `SHA256SUMS` manifest and CycloneDX SBOM. The
+release page prefixes manifest and SBOM filenames with the platform name so
+all assets have unique names. The aggregate `docs/SHA256SUMS` and its detached
+signature are kept in the source tree. SBOMs list build dependencies and
+contain no vault contents or user data.
 
 See `docs/WindowsRelease.txt`, `docs/MacOSRelease-v1.0.7.txt`, and
 `docs/LinuxRelease-v1.0.7.txt` for artifact details and verification commands.
@@ -189,13 +189,15 @@ Import the public key:
 gpg --import docs/PassMan_Release_Signing_2026_pubkey.asc
 ```
 
-Verify the aggregate manifest, then an OS folder:
+To verify the aggregate manifest, download the release packages and SBOMs into
+their original `release/v1.0.7/<platform>/` paths first. For individual
+prebuilt downloads, use the platform-prefixed checksum manifest attached to
+the GitHub release. Its SBOM asset must be renamed from
+`<platform>-SBOM.cdx.json` to `SBOM.cdx.json` before checking the manifest.
 
 ```bash
 gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
-
-cd release/v1.0.7/windows
-shasum -a 256 -c SHA256SUMS
+shasum -a 256 -c docs/SHA256SUMS
 ```
 
 Verify a detached package signature:
@@ -203,8 +205,8 @@ Verify a detached package signature:
 ```bash
 gpg --verify PassMan-linux-x64.tar.gz.asc PassMan-linux-x64.tar.gz
 gpg --verify PassMan-macOS-universal.dmg.asc PassMan-macOS-universal.dmg
-gpg --verify release/v1.0.7/windows/PassMan.exe.asc release/v1.0.7/windows/PassMan.exe
-gpg --verify release/v1.0.7/windows/PassMan-Setup-1.0.7.exe.asc release/v1.0.7/windows/PassMan-Setup-1.0.7.exe
+gpg --verify PassMan.exe.asc PassMan.exe
+gpg --verify PassMan-Setup-1.0.7.exe.asc PassMan-Setup-1.0.7.exe
 ```
 
 How to re-sign after a rebuild is documented in `docs/Build.txt` (Release
@@ -285,7 +287,7 @@ The repository is configured to ignore:
 - Virtual environments
 - Python caches
 - PyInstaller build output
-- Release artifacts except the signed v1.0.7 Windows, macOS, and Linux packages
+- Local release artifacts (published release downloads remain on GitHub Releases)
 - Local vault files
 - macOS AppleDouble metadata
 - Private GPG key material

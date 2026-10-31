@@ -15,44 +15,10 @@ __pycache__/
 .venv/
 .venv-*/
 
-# Build outputs and release artifacts
+# Build outputs and local release artifacts
 build/
 dist/
-release/*
-!release/v1.0.7/
-release/v1.0.7/*
-!release/v1.0.7/windows/
-release/v1.0.7/windows/*
-!release/v1.0.7/windows/PassMan.exe
-!release/v1.0.7/windows/PassMan.exe.asc
-!release/v1.0.7/windows/PassMan-Setup-1.0.7.exe
-!release/v1.0.7/windows/PassMan-Setup-1.0.7.exe.asc
-!release/v1.0.7/windows/SBOM.cdx.json
-!release/v1.0.7/windows/SBOM.cdx.json.asc
-!release/v1.0.7/windows/SHA256SUMS
-!release/v1.0.7/windows/SHA256SUMS.asc
-!release/v1.0.7/macos/
-release/v1.0.7/macos/*
-!release/v1.0.7/macos/PassMan-macOS-arm64.dmg
-!release/v1.0.7/macos/PassMan-macOS-arm64.dmg.asc
-!release/v1.0.7/macos/PassMan-macOS-x64.dmg
-!release/v1.0.7/macos/PassMan-macOS-x64.dmg.asc
-!release/v1.0.7/macos/PassMan-macOS-universal.dmg
-!release/v1.0.7/macos/PassMan-macOS-universal.dmg.asc
-!release/v1.0.7/macos/SBOM.cdx.json
-!release/v1.0.7/macos/SBOM.cdx.json.asc
-!release/v1.0.7/macos/SHA256SUMS
-!release/v1.0.7/macos/SHA256SUMS.asc
-!release/v1.0.7/linux/
-release/v1.0.7/linux/*
-!release/v1.0.7/linux/PassMan-linux-x64.tar.gz
-!release/v1.0.7/linux/PassMan-linux-x64.tar.gz.asc
-!release/v1.0.7/linux/PassMan-linux-x64.deb
-!release/v1.0.7/linux/PassMan-linux-x64.deb.asc
-!release/v1.0.7/linux/SBOM.cdx.json
-!release/v1.0.7/linux/SBOM.cdx.json.asc
-!release/v1.0.7/linux/SHA256SUMS
-!release/v1.0.7/linux/SHA256SUMS.asc
+/release/
 
 # Top-level branding kit only (application icons live under src/assets/).
 /assets/

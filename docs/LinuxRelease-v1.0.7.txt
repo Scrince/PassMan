@@ -64,6 +64,6 @@ Cross-platform release status
 -----------------------------
 
 The v1.0.7 Windows executable, installer, SBOM, and signatures are available
-under `release/v1.0.7/windows/`. The macOS packages are documented in
+on the [GitHub v1.0.7 release page](https://github.com/Scrince/PassMan/releases/tag/v1.0.7). The macOS packages are documented in
 `docs/MacOSRelease-v1.0.7.txt`; the Windows build and verification details are
 in `docs/WindowsRelease.txt`.
