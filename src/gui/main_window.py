@@ -10,7 +10,7 @@ from collections.abc import Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from PyQt6.QtCore import QEvent, QPropertyAnimation, QSettings, QTimer, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QSettings, QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QIntValidator, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
@@ -26,7 +26,6 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QLayout,
     QFileDialog,
-    QMainWindow,
     QMessageBox,
     QProgressBar,
     QPushButton,

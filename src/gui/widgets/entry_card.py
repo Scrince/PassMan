@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from PyQt6.QtCore import QTimer, Qt, pyqtSignal
-from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout, QPushButton, QStyle, QVBoxLayout, QWidget, QSizePolicy
+from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout, QPushButton, QVBoxLayout, QWidget, QSizePolicy
 
 from models.entry import Entry
 
