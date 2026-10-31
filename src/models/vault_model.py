@@ -76,26 +76,23 @@ class VaultModel:
             raw = data.get(name, [])
             if not isinstance(raw, list):
                 raise ValueError(f"Vault field '{name}' must be a list.")
-            return [item for item in raw if isinstance(item, dict)]
+            for index, item in enumerate(raw):
+                if not isinstance(item, dict):
+                    raise ValueError(
+                        f"Vault field '{name}' contains an invalid record at index {index}."
+                    )
+            return raw
 
         raw_entries = records("entries")
-        entries = [Entry.from_dict(item) for item in raw_entries if isinstance(item, dict)]
+        entries = [Entry.from_dict(item) for item in raw_entries]
         raw_projects = records("key_projects")
-        key_projects = [
-            KeyProject.from_dict(item) for item in raw_projects if isinstance(item, dict)
-        ]
+        key_projects = [KeyProject.from_dict(item) for item in raw_projects]
         raw_authenticators = records("authenticator_entries")
-        authenticator_entries = [
-            AuthenticatorEntry.from_dict(item)
-            for item in raw_authenticators
-            if isinstance(item, dict)
-        ]
+        authenticator_entries = [AuthenticatorEntry.from_dict(item) for item in raw_authenticators]
         raw_recovery = records("recovery_entries")
-        recovery_entries = [
-            RecoveryEntry.from_dict(item) for item in raw_recovery if isinstance(item, dict)
-        ]
+        recovery_entries = [RecoveryEntry.from_dict(item) for item in raw_recovery]
         raw_seeds = records("seed_entries")
-        seed_entries = [SeedEntry.from_dict(item) for item in raw_seeds if isinstance(item, dict)]
+        seed_entries = [SeedEntry.from_dict(item) for item in raw_seeds]
         settings = VaultSettings.from_dict(data.get("settings"))
         return cls(
             entries=entries,
@@ -105,4 +102,3 @@ class VaultModel:
             seed_entries=seed_entries,
             settings=settings,
         )
-
