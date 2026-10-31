@@ -10,7 +10,7 @@ from collections.abc import Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from PyQt6.QtCore import QEvent, QPropertyAnimation, QTimer, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QPropertyAnimation, QSettings, QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QIntValidator, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
@@ -50,7 +50,7 @@ from gui.settings_window import SettingsWindow
 from gui.widgets.entry_card import EntryCard
 from models.entry import Entry
 from utils.clipboard import ClipboardManager
-from utils.file_paths import asset_path
+from utils.file_paths import VAULT_FILENAME, asset_path
 from utils.themes import DEFAULT_THEME_NAME, theme_stylesheet
 from version import APP_DISPLAY_NAME, APP_NAME
 
@@ -388,9 +388,10 @@ class MainWindow(ResizableMainWindow):
     lock_requested = pyqtSignal()
     theme_changed = pyqtSignal(str)
 
-    def __init__(self, vault: Vault, app: QApplication, theme_name: str = DEFAULT_THEME_NAME) -> None:
+    def __init__(self, vault: Vault, app: QApplication, theme_name: str = DEFAULT_THEME_NAME, vault_settings: QSettings | None = None) -> None:
         super().__init__()
         self.vault = vault
+        self.vault_settings = vault_settings
         self.app = app
         self.clipboard = ClipboardManager(app)
         self.allow_debug_tools = not getattr(sys, "frozen", False)
@@ -790,12 +791,63 @@ class MainWindow(ResizableMainWindow):
             self.auto_lock_seconds,
             self.clipboard_clear_seconds,
             self.theme_name,
+            self.vault.path,
             self,
         )
         dialog.password_change_requested.connect(self.change_password)
         dialog.lock_requested.connect(self.lock_requested.emit)
         dialog.settings_changed.connect(self.update_settings)
+        dialog.vault_move_requested.connect(lambda directory: self.move_vault_to(directory, dialog))
         dialog.exec()
+
+    def move_vault_to(self, directory: str, dialog: SettingsWindow) -> None:
+        destination = Path(directory).resolve() / VAULT_FILENAME
+        source = self.vault.path.resolve()
+        if destination == source:
+            return
+        try:
+            self.vault.copy_to(destination)
+        except (VaultError, OSError) as exc:
+            QMessageBox.warning(dialog, "Move failed", f"The vault was not moved:\n{exc}")
+            return
+
+        settings = self.vault_settings
+        if settings is not None:
+            previous = settings.value("vault/directory", "", type=str)
+            settings.setValue("vault/directory", str(destination.parent))
+            settings.sync()
+            if settings.status() != QSettings.Status.NoError:
+                if previous:
+                    settings.setValue("vault/directory", previous)
+                else:
+                    settings.remove("vault/directory")
+                settings.sync()
+                destination.unlink(missing_ok=True)
+                destination.with_name(f"{destination.name}.bak").unlink(missing_ok=True)
+                QMessageBox.warning(dialog, "Move failed", "Could not save the new vault location.")
+                return
+
+        backup = self.vault.backup_path
+        self.vault.path = destination
+        self.vault.load_path = destination
+        dialog.set_vault_path(destination)
+        cleanup_errors = []
+        for old_file in (source, backup):
+            if old_file in (destination, destination.with_name(f"{destination.name}.bak")):
+                continue
+            try:
+                old_file.unlink(missing_ok=True)
+            except OSError as exc:
+                cleanup_errors.append(str(exc))
+        if cleanup_errors:
+            QMessageBox.information(
+                dialog,
+                "Vault moved",
+                "The vault is now using the new folder, but an original copy could not be removed:\n"
+                + "\n".join(cleanup_errors),
+            )
+        else:
+            QMessageBox.information(dialog, "Vault moved", f"Vault and backup moved to:\n{destination.parent}")
 
     def open_password_generator(self) -> None:
         PasswordGeneratorWindow(self.copy_text, self).exec()
