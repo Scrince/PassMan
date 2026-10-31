@@ -105,21 +105,21 @@ Requirements:
 - A desktop environment capable of running PyQt6
 
 ```bash
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r requirements.txt
-python src/main.py
+uv sync --locked
+uv run python src/main.py
 ```
+
+Contributors should use `uv sync --locked --extra build --extra dev` and follow
+the checks in [CONTRIBUTING.md](CONTRIBUTING.md). Release maintainers should
+follow [docs/ReleaseProcess.md](docs/ReleaseProcess.md).
 
 ## Build
 
 PassMan uses PyInstaller. Run packaging **on the target OS** (no cross-compile from Windows to Linux/macOS).
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-python build.py                    # auto-detects host platform
+uv sync --locked --extra build
+uv run python build.py             # auto-detects host platform
 ```
 
 Platform-specific examples:
