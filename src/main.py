@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QSettings, Qt
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
@@ -83,11 +83,16 @@ class PassManApp:
         self.qt = QApplication(sys.argv)
         self.qt.setApplicationName(APP_NAME)
         self.qt.setApplicationVersion(APP_VERSION)
+        self.settings = QSettings(APP_NAME, APP_NAME)
         self.theme_name = DEFAULT_THEME_NAME
         self.qt.setStyleSheet(theme_stylesheet(self.theme_name))
         if APP_ICON_PATH.exists():
             self.qt.setWindowIcon(QIcon(str(APP_ICON_PATH)))
-        self.vault = Vault(vault_path())
+        saved_directory = self.settings.value("vault/directory", "", type=str)
+        initial_vault_path = (
+            Path(saved_directory) / VAULT_FILENAME if saved_directory else vault_path()
+        )
+        self.vault = Vault(initial_vault_path)
         self.window: MainWindow | None = None
 
     def run(self) -> int:
@@ -105,26 +110,41 @@ class PassManApp:
             None,
             "No vault found",
             "No vault.dat was found in the application vault folder.\n\n"
-            "Do you want to load an existing vault.dat or vault.dat.bak from another location?",
+            "Choose Yes to load an existing vault.dat or vault.dat.bak from another location, "
+            "or No to create a new vault in a folder you choose.",
         )
-        if answer != QMessageBox.StandardButton.Yes:
-            return True
+        if answer == QMessageBox.StandardButton.Yes:
+            selected, _ = QFileDialog.getOpenFileName(
+                None,
+                "Choose existing vault",
+                str(self.vault.path.parent),
+                "PassMan vaults (vault.dat vault.dat.bak);;Vault files (*.dat *.bak);;All files (*)",
+            )
+            if selected:
+                selected_path = Path(selected)
+                if selected_path.name == f"{VAULT_FILENAME}.bak":
+                    self.vault = Vault(selected_path.with_name(VAULT_FILENAME), load_path=selected_path)
+                else:
+                    self.vault = Vault(selected_path)
+                self.remember_vault_directory(self.vault.path.parent)
+                return True
 
-        selected, _ = QFileDialog.getOpenFileName(
+        selected_directory = QFileDialog.getExistingDirectory(
             None,
-            "Choose existing vault",
-            str(vault_path().parent),
-            "PassMan vaults (vault.dat vault.dat.bak);;Vault files (*.dat *.bak);;All files (*)",
+            "Choose folder for new vault",
+            str(self.vault.path.parent),
+            QFileDialog.Option.ShowDirsOnly,
         )
-        if not selected:
-            return True
+        if not selected_directory:
+            return False
 
-        selected_path = Path(selected)
-        if selected_path.name == f"{VAULT_FILENAME}.bak":
-            self.vault = Vault(selected_path.with_name(VAULT_FILENAME), load_path=selected_path)
-        else:
-            self.vault = Vault(selected_path)
+        self.vault = Vault(Path(selected_directory) / VAULT_FILENAME)
+        self.remember_vault_directory(self.vault.path.parent)
         return True
+
+    def remember_vault_directory(self, directory: Path) -> None:
+        self.settings.setValue("vault/directory", str(directory.resolve()))
+        self.settings.sync()
 
     def unlock_or_create(self) -> bool:
         while True:
@@ -164,7 +184,7 @@ class PassManApp:
             return False
         backup_vault = Vault(self.vault.backup_path)
         try:
-            backup_vault.unlock(password)
+            backup_vault.unlock(password, migrate=False)
         except VaultError:
             return False
         except OSError as exc:
@@ -187,7 +207,7 @@ class PassManApp:
         return True
 
     def show_main_window(self) -> None:
-        self.window = MainWindow(self.vault, self.qt, self.theme_name)
+        self.window = MainWindow(self.vault, self.qt, self.theme_name, self.settings)
         self.window.lock_requested.connect(self.lock)
         self.window.theme_changed.connect(self.update_theme)
         self.window.show()
