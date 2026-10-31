@@ -101,7 +101,7 @@ PassMan opens a folder picker; canceling it exits without creating a vault.
 Requirements:
 
 - Python 3.12 or newer is recommended; Python 3.14 is validated in the current development environment
-- `pip`
+- `uv` (see [uv installation](https://docs.astral.sh/uv/getting-started/installation/))
 - A desktop environment capable of running PyQt6
 
 ```bash

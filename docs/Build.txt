@@ -22,7 +22,9 @@ Repository layout used by packaging
 
   build.py                     Cross-platform packaging entry point
   PassMan.spec                 Portable PyInstaller spec (macOS .app + onedir)
-  requirements.txt             Runtime + PyInstaller dependencies
+  pyproject.toml                Project and runtime dependency metadata
+  uv.lock                       Locked cross-platform dependency graph
+  requirements.txt             Pinned pip-compatible dependencies
   src/main.py                  Application entry point
   src/version.py               APP_NAME / APP_VERSION
   src/assets/passman_icon.png  Bundled runtime icon (all platforms)
@@ -39,21 +41,25 @@ Common prerequisites
 --------------------
 
   - Python 3.12 or newer is recommended; Python 3.14 is validated in the current development environment
-  - pip
+  - uv (https://docs.astral.sh/uv/)
   - A desktop stack capable of installing PyQt6 wheels for the host
-  - Network access once to install requirements (or a pre-seeded wheel cache)
+  - Network access once to install locked dependencies (or a pre-seeded cache)
   - Windows installer builds also require Inno Setup 6 or newer
 
 From the repository root:
 
-  python3 -m venv .venv
-  source .venv/bin/activate          # Windows: .venv\Scripts\activate
-  python -m pip install --upgrade pip
-  pip install -r requirements.txt
+  uv sync --locked --extra build
+
+The `--locked` flag ensures the committed `uv.lock` is used without modifying
+it. Activate the created environment before following the platform build
+commands below:
+
+  Linux/macOS: source .venv/bin/activate
+  Windows PowerShell: .venv\Scripts\Activate.ps1
 
 Sanity-check before packaging:
 
-  python src/main.py
+  uv run python src/main.py
 
 
 Linux build (x86_64 or arm64)
