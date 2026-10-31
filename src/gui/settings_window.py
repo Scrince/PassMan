@@ -1,15 +1,37 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QIntValidator
-from PyQt6.QtWidgets import QCheckBox, QComboBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QStyle, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QStyle,
+    QVBoxLayout,
+    QWidget,
+)
 
 from gui.resizable import ResizableDialog
 from utils.themes import THEME_OPTIONS
 
 
 class SecondsControl(QWidget):
-    def __init__(self, value: int, minimum: int, maximum: int, parent=None) -> None:
+    def __init__(
+        self,
+        value: int,
+        minimum: int,
+        maximum: int,
+        accessible_name: str,
+        parent=None,
+    ) -> None:
         super().__init__(parent)
         self.minimum = minimum
         self.maximum = maximum
@@ -20,6 +42,7 @@ class SecondsControl(QWidget):
 
         self.value_edit = QLineEdit(str(value))
         self.value_edit.setObjectName("SecondsInput")
+        self.value_edit.setAccessibleName(f"{accessible_name} in seconds")
         self.value_edit.setValidator(QIntValidator(minimum, maximum, self))
         self.value_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.value_edit.editingFinished.connect(self.normalize_value)
@@ -27,11 +50,13 @@ class SecondsControl(QWidget):
         decrease = QPushButton("-")
         decrease.setObjectName("StepperButton")
         decrease.setToolTip("Decrease seconds")
+        decrease.setAccessibleName(f"Decrease {accessible_name}")
         decrease.clicked.connect(lambda: self.adjust_value(-1))
 
         increase = QPushButton("+")
         increase.setObjectName("StepperButton")
         increase.setToolTip("Increase seconds")
+        increase.setAccessibleName(f"Increase {accessible_name}")
         increase.clicked.connect(lambda: self.adjust_value(1))
 
         layout.addWidget(self.value_edit, 1)
@@ -58,6 +83,7 @@ class SettingsWindow(ResizableDialog):
     password_change_requested = pyqtSignal(str, str)
     lock_requested = pyqtSignal()
     settings_changed = pyqtSignal(bool, int, int, str)
+    vault_move_requested = pyqtSignal(str)
 
     def __init__(
         self,
@@ -66,6 +92,7 @@ class SettingsWindow(ResizableDialog):
         auto_lock_seconds: int,
         clipboard_clear_seconds: int,
         theme_name: str,
+        vault_path: Path,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -83,9 +110,14 @@ class SettingsWindow(ResizableDialog):
         self.debug_check = QCheckBox("Enable debug tools")
         self.debug_check.setChecked(debug_enabled)
         self.debug_check.setVisible(allow_debug_tools)
-        self.auto_lock_control = SecondsControl(auto_lock_seconds, 0, 3600)
-        self.clipboard_control = SecondsControl(clipboard_clear_seconds, 0, 600)
+        self.auto_lock_control = SecondsControl(
+            auto_lock_seconds, 0, 3600, "auto-lock timeout"
+        )
+        self.clipboard_control = SecondsControl(
+            clipboard_clear_seconds, 0, 600, "clipboard clear timeout"
+        )
         self.theme_combo = QComboBox()
+        self.theme_combo.setAccessibleName("Application theme")
         self.theme_combo.addItems(THEME_OPTIONS)
         self.theme_combo.setCurrentText(theme_name if theme_name in THEME_OPTIONS else THEME_OPTIONS[0])
         if allow_debug_tools:
@@ -93,17 +125,31 @@ class SettingsWindow(ResizableDialog):
         form.addRow("Auto-lock timer", self.auto_lock_control)
         form.addRow("Clipboard clear timer", self.clipboard_control)
         form.addRow("Theme", self.theme_combo)
+        self.vault_path_label = QLabel(str(vault_path))
+        self.vault_path_label.setWordWrap(True)
+        self.vault_path_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.vault_path_label.setAccessibleName("Current vault file path")
+        self.move_vault_button = QPushButton("Move Vault…")
+        self.move_vault_button.setAccessibleName("Move the vault and backup to another folder")
+        self.move_vault_button.setToolTip(
+            "Copies and verifies the vault and backup before switching locations."
+        )
+        form.addRow("Current vault file", self.vault_path_label)
+        form.addRow(self.move_vault_button)
         root.addLayout(form)
 
         self.old_password = QLineEdit()
         self.old_password.setEchoMode(QLineEdit.EchoMode.Password)
         self.old_password.setPlaceholderText("Current master password")
+        self.old_password.setAccessibleName("Current master password")
         self.new_password = QLineEdit()
         self.new_password.setEchoMode(QLineEdit.EchoMode.Password)
         self.new_password.setPlaceholderText("New master password")
+        self.new_password.setAccessibleName("New master password")
         self.confirm_password = QLineEdit()
         self.confirm_password.setEchoMode(QLineEdit.EchoMode.Password)
         self.confirm_password.setPlaceholderText("Confirm new master password")
+        self.confirm_password.setAccessibleName("Confirm new master password")
         root.addWidget(self.old_password)
         root.addWidget(self.new_password)
         root.addWidget(self.confirm_password)
@@ -113,6 +159,7 @@ class SettingsWindow(ResizableDialog):
         change.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton))
         change.setObjectName("PrimaryButton")
         lock = QPushButton("Lock Vault")
+        lock.setAccessibleName("Lock the current vault")
         lock.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxWarning))
         close = QPushButton("Close")
         close.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogCloseButton))
@@ -125,8 +172,35 @@ class SettingsWindow(ResizableDialog):
         change.clicked.connect(self._change_password)
         lock.clicked.connect(self._lock_and_close)
         close.clicked.connect(self._save_and_close)
+        self.move_vault_button.clicked.connect(self._request_vault_move)
 
-    def closeEvent(self, event) -> None:              
+    def set_vault_path(self, path: Path) -> None:
+        self.vault_path_label.setText(str(path))
+        self.vault_path_label.setAccessibleDescription(f"Current vault file: {path}")
+
+    def _request_vault_move(self) -> None:
+        selected = QFileDialog.getExistingDirectory(
+            self,
+            "Choose destination folder for vault",
+            str(Path(self.vault_path_label.text()).parent),
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if not selected:
+            return
+        destination = Path(selected).resolve()
+        current = Path(self.vault_path_label.text()).resolve().parent
+        if destination == current:
+            return
+        answer = QMessageBox.question(
+            self,
+            "Move vault?",
+            "PassMan will copy and verify vault.dat and vault.dat.bak at the new location, "
+            "switch to that location, and then remove the original files. Continue?",
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            self.vault_move_requested.emit(str(destination))
+
+    def closeEvent(self, event) -> None:
         self._save_and_close()
         event.accept()
 
