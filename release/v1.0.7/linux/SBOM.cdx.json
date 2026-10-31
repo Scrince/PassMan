@@ -1,0 +1,298 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:c2b51103-1e19-42f4-87b7-0c2c4587c63d",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-31T02:40:29Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "pyinstaller",
+          "version": "6.22.3",
+          "purl": "pkg:pypi/pyinstaller@6.22.3"
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "bom-ref": "pkg:generic/passman@1.0.7",
+      "name": "PassMan",
+      "version": "1.0.7",
+      "purl": "pkg:generic/passman@1.0.7"
+    },
+    "properties": [
+      {
+        "name": "passman:target-platform",
+        "value": "Ubuntu 24.04 LTS Linux"
+      },
+      {
+        "name": "passman:target-architecture",
+        "value": "x64 (amd64)"
+      },
+      {
+        "name": "passman:build-environment",
+        "value": "Ubuntu 24.04, Python 3.12.3"
+      },
+      {
+        "name": "passman:sbom-scope",
+        "value": "installed build environment, runtime requirements, and packaging dependencies"
+      },
+      {
+        "name": "passman:source-requirements",
+        "value": "requirements.txt"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/altgraph@0.17.5",
+      "name": "altgraph",
+      "version": "0.17.5",
+      "purl": "pkg:pypi/altgraph@0.17.5",
+      "properties": [
+        {
+          "name": "passman:direct-requirement",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/argon2-cffi@25.1.0",
+      "name": "argon2-cffi",
+      "version": "25.1.0",
+      "purl": "pkg:pypi/argon2-cffi@25.1.0",
+      "properties": [
+        {
+          "name": "passman:direct-requirement",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/argon2-cffi-bindings@26.1.0",
+      "name": "argon2-cffi-bindings",
+      "version": "26.1.0",
+      "purl": "pkg:pypi/argon2-cffi-bindings@26.1.0",
+      "properties": [
+        {
+          "name": "passman:direct-requirement",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/cffi@2.1.1",
+      "name": "cffi",
+      "version": "2.1.1",
+      "purl": "pkg:pypi/cffi@2.1.1",
+      "properties": [
+        {
+          "name": "passman:direct-requirement",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/cryptography@50.0.2",
+      "name": "cryptography",
+      "version": "50.0.2",
+      "purl": "pkg:pypi/cryptography@50.0.2",
+      "properties": [
+        {
+          "name": "passman:direct-requirement",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/packaging@26.3",
+      "name": "packaging",
+      "version": "26.3",
+      "purl": "pkg:pypi/packaging@26.3",
+      "properties": [
+        {
+          "name": "passman:direct-requirement",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pip@26.2.2",
+      "name": "pip",
+      "version": "26.2.2",
+      "purl": "pkg:pypi/pip@26.2.2",
+      "properties": [
+        {
+          "name": "passman:direct-requirement",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pycparser@3.12",
+      "name": "pycparser",
+      "version": "3.12",
+      "purl": "pkg:pypi/pycparser@3.12",
+      "properties": [
+        {
+          "name": "passman:direct-requirement",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyinstaller@6.22.3",
+      "name": "pyinstaller",
+      "version": "6.22.3",
+      "purl": "pkg:pypi/pyinstaller@6.22.3",
+      "properties": [
+        {
+          "name": "passman:direct-requirement",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyinstaller-hooks-contrib@2026.9",
+      "name": "pyinstaller-hooks-contrib",
+      "version": "2026.9",
+      "purl": "pkg:pypi/pyinstaller-hooks-contrib@2026.9",
+      "properties": [
+        {
+          "name": "passman:direct-requirement",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyqt6@6.11.0",
+      "name": "PyQt6",
+      "version": "6.11.0",
+      "purl": "pkg:pypi/pyqt6@6.11.0",
+      "properties": [
+        {
+          "name": "passman:direct-requirement",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyqt6-qt6@6.11.0",
+      "name": "PyQt6-Qt6",
+      "version": "6.11.0",
+      "purl": "pkg:pypi/pyqt6-qt6@6.11.0",
+      "properties": [
+        {
+          "name": "passman:direct-requirement",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyqt6-sip@13.13.0",
+      "name": "PyQt6_sip",
+      "version": "13.13.0",
+      "purl": "pkg:pypi/pyqt6-sip@13.13.0",
+      "properties": [
+        {
+          "name": "passman:direct-requirement",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "type": "framework",
+      "bom-ref": "pkg:generic/python@3.12.3",
+      "name": "Python",
+      "version": "3.12.3",
+      "purl": "pkg:generic/python@3.12.3"
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/setuptools@84.2.1",
+      "name": "setuptools",
+      "version": "84.2.1",
+      "purl": "pkg:pypi/setuptools@84.2.1",
+      "properties": [
+        {
+          "name": "passman:direct-requirement",
+          "value": "false"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:generic/passman@1.0.7",
+      "dependsOn": [
+        "pkg:generic/python@3.12.3",
+        "pkg:pypi/argon2-cffi@25.1.0",
+        "pkg:pypi/cryptography@50.0.2",
+        "pkg:pypi/pyinstaller@6.22.3",
+        "pkg:pypi/pyqt6-qt6@6.11.0",
+        "pkg:pypi/pyqt6@6.11.0"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/argon2-cffi-bindings@26.1.0",
+      "dependsOn": [
+        "pkg:pypi/cffi@2.1.1"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/argon2-cffi@25.1.0",
+      "dependsOn": [
+        "pkg:pypi/argon2-cffi-bindings@26.1.0"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/cffi@2.1.1",
+      "dependsOn": [
+        "pkg:pypi/pycparser@3.12"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/cryptography@50.0.2",
+      "dependsOn": [
+        "pkg:pypi/cffi@2.1.1"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/pyinstaller-hooks-contrib@2026.9",
+      "dependsOn": [
+        "pkg:pypi/packaging@26.3"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/pyinstaller@6.22.3",
+      "dependsOn": [
+        "pkg:pypi/altgraph@0.17.5",
+        "pkg:pypi/packaging@26.3",
+        "pkg:pypi/pyinstaller-hooks-contrib@2026.9",
+        "pkg:pypi/setuptools@84.2.1"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/pyqt6@6.11.0",
+      "dependsOn": [
+        "pkg:pypi/pyqt6-qt6@6.11.0",
+        "pkg:pypi/pyqt6-sip@13.13.0"
+      ]
+    }
+  ]
+}
