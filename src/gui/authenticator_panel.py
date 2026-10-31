@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from time import time
 
 from PyQt6.QtCore import QPropertyAnimation, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont
@@ -36,8 +35,8 @@ class AuthenticatorEditorDialog(ResizableDialog):
     def __init__(self, parent: QWidget | None = None, entry: AuthenticatorEntry | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Edit Authenticator" if entry else "Add Authenticator")
-        self.setMinimumSize(520, 420)
-        self.resize(580, 480)
+        self.setMinimumSize(620, 520)
+        self.resize(700, 600)
         self._entry_id = entry.id if entry else None
         self._created_at = entry.created_at if entry else None
 
@@ -54,6 +53,14 @@ class AuthenticatorEditorDialog(ResizableDialog):
         self.secret_edit = QLineEdit(entry.secret if entry else "")
         self.secret_edit.setPlaceholderText("Base32 secret")
         self.secret_edit.setEchoMode(QLineEdit.EchoMode.Password)
+
+        # Add room for about ten more characters than the default line edit hint.
+        text_field_width = (
+            self.name_edit.sizeHint().width()
+            + self.name_edit.fontMetrics().horizontalAdvance("0" * 10)
+        )
+        for field in (self.name_edit, self.issuer_edit, self.secret_edit):
+            field.setMinimumWidth(text_field_width)
 
         self.type_combo = NoWheelComboBox()
         self.type_combo.addItem("TOTP (time-based)", "totp")
@@ -398,7 +405,7 @@ class AuthenticatorPanel(QWidget):
         self.sort_combo.currentIndexChanged.connect(self.refresh)
 
         self._tick = QTimer(self)
-        self._tick.setSingleShot(True)
+        self._tick.setInterval(1000)
         self._tick.timeout.connect(self._refresh_codes)
         self._tick.start()
 
@@ -455,11 +462,6 @@ class AuthenticatorPanel(QWidget):
     def _refresh_codes(self) -> None:
         for card in self._cards:
             card.refresh_code()
-        if self.isVisible():
-            periods = [card.entry.period for card in self._cards if card.entry.type == "totp"]
-            if periods:
-                boundary = min(period - (time() % period) for period in periods)
-                self._tick.start(max(50, int(boundary * 1000) + 10))
 
     def add_entry(self) -> None:
         dialog = AuthenticatorEditorDialog(self)
