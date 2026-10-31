@@ -1,8 +1,9 @@
 PassMan - Cross-Platform Build Guide
 ====================================
 
-This document describes how to produce Linux and macOS release builds on a
-machine that matches the target OS. PassMan is packaged with PyInstaller.
+This document describes how to produce Linux, macOS, and Windows release
+builds on machines that match each target OS. PassMan is packaged with
+PyInstaller.
 
 Native builds only
 ------------------
@@ -11,9 +12,9 @@ Native builds only
   - Build macOS packages on macOS.
   - Build Windows packages on Windows.
 
-Cross-compiling from Windows to Linux/macOS is not supported. Copy the
-repository to the build machine, create a virtualenv, install dependencies,
-then run build.py.
+Cross-compiling between operating systems is not supported. Copy the
+repository to a machine running the target OS, create a virtualenv, install
+dependencies, then run build.py.
 
 
 Repository layout used by packaging
@@ -62,7 +63,8 @@ Prerequisites (Debian/Ubuntu-style examples):
 
   sudo apt update
   sudo apt install -y python3 python3-venv python3-pip \
-      libgl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0 \
+      binutils libgl1 libegl1 libglib2.0-0 libfontconfig1 libfreetype6 \
+      libxkbcommon0 libxkbcommon-x11-0 libdbus-1-3 libxcb-cursor0 \
       libxcb-xinerama0 libxcb-icccm4 libxcb-image0 \
       libxcb-keysyms1 libxcb-render-util0 libxcb-shape0
 
@@ -104,6 +106,44 @@ Linux vault location (frozen build):
 
   $XDG_DATA_HOME/PassMan/vault.dat
   # or ~/.local/share/PassMan/vault.dat
+
+
+Ubuntu 24.04 LTS release build
+------------------------------
+
+The v1.0.2 Ubuntu-targeted packages are built inside official Ubuntu 24.04
+(Noble) Docker images. Use one container per target architecture; on Apple
+Silicon, amd64 builds run through Docker emulation.
+
+The build uses Ubuntu's Python 3.12 and the same pinned requirements as the
+other releases. Install the Linux prerequisites above plus `python3.12-dev`
+(PyInstaller needs Ubuntu's shared Python library), then run:
+
+  python build.py --platform linux
+
+Keep each platform's release artifacts in its own folder directly under the
+version directory, matching the v1.0.0 layout:
+
+  release/v<version>/windows/
+  release/v<version>/macos/
+  release/v<version>/linux/
+
+The generic Linux build writes to `release/v<version>/linux/`. Put Ubuntu
+24.04-specific packages in a distro subfolder inside that Linux folder, so
+they remain part of the Linux release suite:
+
+  release/v<version>/linux/ubuntu-24.04/:
+
+  PassMan-Ubuntu-24.04-x64.tar.gz
+  PassMan-Ubuntu-24.04-x64.deb
+  PassMan-Ubuntu-24.04-arm64.tar.gz
+  PassMan-Ubuntu-24.04-arm64.deb
+
+Sign each archive and Debian package with the release key. Create and sign a
+`SHA256SUMS` manifest beside them, then update and re-sign `docs/SHA256SUMS`.
+The v1.0.2 Ubuntu artifacts are stored under
+`release/v1.0.2/linux/ubuntu-24.04/`. See `docs/UbuntuRelease.txt` for the
+artifact details and verification steps.
 
 
 macOS build (Apple Silicon, Intel, or universal2)
@@ -150,10 +190,17 @@ PyInstaller only (skip DMG):
 Notes:
 
   - DMG creation uses `hdiutil` (standard on macOS).
-  - The app is not notarized or Developer ID signed by this script. Gatekeeper
-    will warn on unsigned downloads. For distribution outside your own machines,
-    sign and notarize with an Apple Developer identity after packaging.
-  - Optional ad-hoc sign after build:
+  - Before packaging, the script stages the app on the local temporary volume,
+    ad-hoc signs it, and verifies the signature. This also avoids AppleDouble
+    metadata generated on some external development volumes.
+  - The v1.0.7 universal DMG combines the arm64 and x86_64 native bundles.
+    `scripts/merge_macos_universal.py` merges the Mach-O files, updates the
+    bundled cryptography wheel metadata, and prepares the app for signing.
+    Sign and verify the merged app before creating its DMG.
+  - The app is not notarized or Developer ID signed. Gatekeeper may warn on
+    downloaded builds. For public distribution, sign and notarize with an Apple
+    Developer identity after packaging.
+  - To ad-hoc sign the `.app` output itself after a build:
 
       codesign --force --deep --sign - dist/macos-arm64/PassMan.app
 
@@ -188,6 +235,9 @@ manifests. Each executable has its own detached signature file.
 Windows release verification instructions and the current executable hash are
 maintained in `docs/WindowsRelease.txt`.
 
+Before building, `build.py` refuses to write into the version/platform output
+folder if it contains `vault.dat`, `vault.dat.bak`, or `vault.dat.*` files.
+
 The Windows build limits PyInstaller's DLL search path to Python and Windows
 system directories. This prevents unrelated DLLs from other desktop tools from
 being copied into the executable and shadowing the Windows Universal CRT.
@@ -202,16 +252,25 @@ signed per-OS SHA256SUMS manifest. The public aggregate lives in docs/.
 
   Application packages (sign each binary / archive):
 
-    release/v1.0.0/linux/PassMan-linux-x64.tar.gz
-    release/v1.0.0/linux/PassMan-linux-x64.deb
-    release/v1.0.0/macos/PassMan-macOS-arm64.dmg
-    release/v1.0.0/macos/PassMan-macOS-x64.dmg
-    release/v1.0.0/macos/PassMan-macOS-universal.dmg
-    release/v1.0.0/windows/PassMan.exe
-    release/v1.0.0/windows/PassMan-Setup-1.0.0.exe
+    release/v<version>/linux/PassMan-linux-x64.tar.gz
+    release/v<version>/linux/PassMan-linux-x64.deb
+    release/v<version>/linux/PassMan-linux-arm64.tar.gz
+    release/v<version>/linux/PassMan-linux-arm64.deb
+    release/v<version>/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-x64.tar.gz
+    release/v<version>/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-x64.deb
+    release/v<version>/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-arm64.tar.gz
+    release/v<version>/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-arm64.deb
+    release/v<version>/macos/PassMan-macOS-arm64.dmg
+    release/v<version>/macos/PassMan-macOS-x64.dmg
+    release/v<version>/macos/PassMan-macOS-universal.dmg
+    release/v<version>/windows/PassMan.exe
+    release/v<version>/windows/PassMan-Setup-<version>.exe
+    release/v<version>/<os>/SBOM.cdx.json
 
-  Do not PGP-sign vault.dat, vault.dat.bak, or other runtime data that may sit
-  beside packages. Sign only distributable application artifacts.
+  Sign SBOM.cdx.json as well as the application artifacts and include its hash
+  in both the per-OS and aggregate manifests. Do not PGP-sign vault.dat,
+  vault.dat.bak, or other runtime data that may sit beside packages. Sign only
+  distributable artifacts and their SBOMs.
 
   Signing key (repo-local GPG home, gitignored private material):
 
@@ -220,32 +279,40 @@ signed per-OS SHA256SUMS manifest. The public aggregate lives in docs/.
     # Primary fingerprint: 7858 E51C 98AD 2541 5098  9EF3 1F4D F0EB 1C80 C710
     # Signing subkey:      88DF 58F7 5DBC CA4D D0A3  096C 69A8 3CFF 7D6F B86B
 
+Generate the CycloneDX SBOM from the same build environment used for the
+package. The script records installed Python packages and their dependency
+relationships without reading vault data:
+
+    python scripts/generate_release_sbom.py \
+      --target "Ubuntu 24.04 LTS Linux" \
+      --architecture "x64 (amd64)" \
+      --build-environment "Ubuntu 24.04, Python 3.12.3" \
+      --output release/v<version>/linux/SBOM.cdx.json
+
+For a multi-architecture macOS release, add the other build environment's
+site-packages directory to `PYTHONPATH` so the inventory covers both native
+builds, and set `--architecture` to `arm64, x64, universal2`.
+
   Per-OS example (repeat for linux, macos, windows):
 
     export GNUPGHOME="$PWD/.gnupg-release"
-    cd release/v1.0.0/macos
+    cd release/v<version>/windows
 
     # checksum only the packages (not *.asc, not vault data)
-    shasum -a 256 PassMan-macOS-*.dmg > SHA256SUMS
-    # Linux:  shasum -a 256 PassMan-linux-x64.tar.gz PassMan-linux-x64.deb > SHA256SUMS
-    # Windows: shasum -a 256 PassMan.exe PassMan-Setup-1.0.0.exe > SHA256SUMS
+    shasum -a 256 PassMan.exe PassMan-Setup-<version>.exe > SHA256SUMS
+    # Keep each platform's per-OS manifest beside its release artifacts.
 
     gpg --local-user 88DF58F75DBCCA4DD0A3096C69A83CFF7D6FB86B \
         --detach-sign --armor SHA256SUMS
-    for f in PassMan-macOS-*.dmg; do
-      gpg --local-user 88DF58F75DBCCA4DD0A3096C69A83CFF7D6FB86B \
-          --detach-sign --armor "$f"
-    done
-    # Windows: sign both the standalone app and setup installer.
-    for f in PassMan.exe PassMan-Setup-1.0.0.exe; do
+    for f in PassMan.exe PassMan-Setup-<version>.exe; do
       gpg --local-user 88DF58F75DBCCA4DD0A3096C69A83CFF7D6FB86B \
           --detach-sign --armor "$f"
     done
 
   Aggregate docs manifest (paths relative to the repository root):
 
-    # Write docs/SHA256SUMS with one "hash  release/v1.0.0/<os>/<file>" line
-    # per package, then:
+    # Keep all existing release entries and add one line for each new package
+    # (hash  release/v<version>/linux/ubuntu-24.04/<file>), then:
     gpg --local-user 88DF58F75DBCCA4DD0A3096C69A83CFF7D6FB86B \
         --detach-sign --armor docs/SHA256SUMS
 
@@ -253,7 +320,7 @@ signed per-OS SHA256SUMS manifest. The public aggregate lives in docs/.
 
     gpg --import docs/PassMan_Release_Signing_2026_pubkey.asc
     gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
-    cd release/v1.0.0/linux && shasum -a 256 -c SHA256SUMS
+    cd release/v<version>/windows && shasum -a 256 -c SHA256SUMS
     gpg --verify PassMan-linux-x64.tar.gz.asc PassMan-linux-x64.tar.gz
 
 After rebuilding an artifact, regenerate and sign its per-OS checksum
