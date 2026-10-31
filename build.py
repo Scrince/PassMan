@@ -79,6 +79,31 @@ def release_dir(os_name: str) -> Path:
     return ROOT / "release" / f"v{APP_VERSION}" / os_name
 
 
+def runtime_vault_files(path: Path) -> list[Path]:
+    """Find local vault data that must never enter a release directory."""
+    if not path.exists():
+        return []
+    return [
+        item
+        for item in path.rglob("*")
+        if item.is_file()
+        and (item.name == "vault.dat" or item.name == "vault.dat.bak" or item.name.startswith("vault.dat."))
+    ]
+
+
+def check_release_output(os_name: str) -> int:
+    """Refuse to build into a release directory containing runtime vault data."""
+    output = release_dir(os_name)
+    found = runtime_vault_files(output)
+    if found:
+        return die(
+            "Refusing to write release artifacts beside runtime vault data. "
+            "Move these files to protected backup storage first:\n  "
+            + "\n  ".join(str(path) for path in found)
+        )
+    return 0
+
+
 def find_inno_compiler() -> Path | None:
     compiler = shutil.which("ISCC.exe") or shutil.which("ISCC")
     if compiler:
@@ -109,10 +134,14 @@ def ensure_core_assets() -> None:
 
 
 def pyinstaller_cli(name: str, extra: list[str] | None = None) -> list[str]:
+    spec_path = BUILD_DIR / "spec" / name
+    spec_path.mkdir(parents=True, exist_ok=True)
     command = [
         sys.executable,
         "-m",
         "PyInstaller",
+        "--specpath",
+        str(spec_path),
         "--noconfirm",
         "--clean",
         "--windowed",
@@ -186,7 +215,15 @@ def build_windows(*, package: bool = True) -> int:
     if iscc is None:
         return die("Windows installer packaging requires Inno Setup 6 or 7 (ISCC.exe). Install Inno Setup or use --skip-package.")
 
-    result = run([str(iscc), f"/DAppVersion={APP_VERSION}", str(installer_script)])
+    installer_exe = Path("..") / release_exe.relative_to(ROOT)
+    result = run(
+        [
+            str(iscc),
+            f"/DAppVersion={APP_VERSION}",
+            f"/DAppExePath={installer_exe}",
+            str(installer_script),
+        ]
+    )
     if result != 0:
         return result
 
@@ -521,9 +558,33 @@ def build_macos(*, arch: str = "native", package: bool = True) -> int:
 
     dmg_name = f"{APP_NAME}-macOS-{label}.dmg"
     dist_dmg = DIST_DIR / dmg_name
-    result = _create_dmg(app_bundle, dist_dmg, f"{APP_NAME} {APP_VERSION}")
-    if result != 0:
-        return result
+    codesign = shutil.which("codesign")
+    if codesign is None:
+        return die("codesign not found; cannot sign the macOS app bundle.")
+
+    # Sign from the local temporary volume. Some external development volumes
+    # expose resource forks as AppleDouble files and reject codesign updates.
+    with tempfile.TemporaryDirectory(prefix="passman-macos-") as tmp:
+        signed_app = Path(tmp) / app_bundle.name
+
+        def ignore_appledouble(directory: str, names: list[str]) -> set[str]:
+            return {name for name in names if name.startswith("._")}
+
+        shutil.copytree(
+            app_bundle,
+            signed_app,
+            symlinks=True,
+            ignore=ignore_appledouble,
+        )
+        result = run([codesign, "--force", "--deep", "--sign", "-", str(signed_app)])
+        if result != 0:
+            return result
+        result = run([codesign, "--verify", "--deep", "--strict", str(signed_app)])
+        if result != 0:
+            return result
+        result = _create_dmg(signed_app, dist_dmg, f"{APP_NAME} {APP_VERSION}")
+        if result != 0:
+            return result
 
     out = release_dir("macos")
     out.mkdir(parents=True, exist_ok=True)
@@ -578,10 +639,19 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  package steps : {package}")
 
     if target == "windows":
+        result = check_release_output("windows")
+        if result:
+            return result
         return build_windows(package=package)
     if target == "linux":
+        result = check_release_output("linux")
+        if result:
+            return result
         return build_linux(package=package)
     if target == "macos":
+        result = check_release_output("macos")
+        if result:
+            return result
         return build_macos(arch=args.arch, package=package)
     return die(f"Unsupported platform: {target}")
 
