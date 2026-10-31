@@ -268,6 +268,9 @@ src/
   utils/                  File paths, clipboard handling, themes
   assets/                 App icons and platform-specific icon assets
 build.py                  Cross-platform PyInstaller packaging script
+pyproject.toml             Project, build, dependency, and entry-point metadata
+LICENSE                    MIT license
+SECURITY.md                Vulnerability reporting policy
 scripts/generate_release_sbom.py  CycloneDX build-environment inventory
 requirements.txt          Python dependencies
 PassMan.spec              Portable PyInstaller spec (macOS .app + onedir)
@@ -296,4 +299,8 @@ git status --ignored
 
 ## License
 
-No license file is currently included. Add one before publishing if you want to define reuse, distribution, or contribution terms.
+PassMan is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+## Security Reporting
+
+Please report security vulnerabilities through [GitHub's private vulnerability reporting](https://github.com/Scrince/PassMan/security/advisories/new). Do not post vulnerability details in a public issue. See [SECURITY.md](SECURITY.md) for the reporting policy.

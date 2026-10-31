@@ -11,6 +11,7 @@ AGENTS.md
 # Python caches and environments
 __pycache__/
 *.py[cod]
+*.egg-info/
 .venv/
 .venv-*/
 

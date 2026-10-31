@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools==84.2.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "passman-desktop"
+dynamic = ["version"]
+description = "An offline-first desktop password manager."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+    "PyQt6==6.11.0",
+    "PyQt6-Qt6==6.11.0",
+    "cryptography==50.0.2",
+    "argon2-cffi==25.1.0",
+]
+classifiers = [
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: End Users/Desktop",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Security",
+]
+
+[project.scripts]
+passman = "main:main"
+
+[project.optional-dependencies]
+build = ["pyinstaller==6.22.3"]
+
+[project.urls]
+Repository = "https://github.com/Scrince/PassMan"
+Changelog = "https://github.com/Scrince/PassMan/blob/main/CHANGELOG.md"
+Issues = "https://github.com/Scrince/PassMan/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+py-modules = ["main", "version"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["assets*", "crypto*", "gui*", "models*", "utils*"]
+
+[tool.setuptools.package-data]
+assets = [
+    "*.png",
+    "*.ico",
+    "linux/*.png",
+    "macos/*.icns",
+    "macos/PassMan.iconset/*.png",
+    "windows/*.png",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "version.APP_VERSION"}
