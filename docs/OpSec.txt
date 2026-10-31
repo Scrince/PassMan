@@ -547,7 +547,7 @@ PassMan release verification files:
   docs/SHA256SUMS
   docs/SHA256SUMS.asc
   docs/PassMan_Release_Signing_2026_pubkey.asc
-  release/v1.0.0/*/*.asc
+  release/v1.0.7/*/*.asc
 
 Release signing key:
 
@@ -570,7 +570,7 @@ Verification sequence:
 
   4. Verify artifact checksums:
 
-       cd release/v1.0.0/windows
+       cd release/v1.0.7/windows
        shasum -a 256 -c SHA256SUMS
 
   5. Optionally verify the artifact directly:
@@ -616,7 +616,7 @@ The platform paths below are initial defaults before a directory is selected.
 Windows:
 
   - PassMan.exe is PGP-signed as a release artifact (PassMan.exe.asc).
-  - The v1.0.5 Windows executable and installer are the current Windows
+  - The v1.0.7 Windows executable and installer are the current Windows
     release and are OpenPGP-signed; see
     docs/WindowsRelease.txt for hashes and verification instructions.
   - The executable is not Authenticode-signed unless separately documented.
