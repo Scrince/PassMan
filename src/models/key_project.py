@@ -188,7 +188,14 @@ class KeyProject:
         now = utc_now_iso()
         created_at = str(data.get("created_at") or now)
         raw_keys = data.get("keys", [])
-        keys = [GpgKey.from_dict(item) for item in raw_keys if isinstance(item, dict)]
+        if not isinstance(raw_keys, list):
+            raise ValueError("Vault project field 'keys' must be a list.")
+        for index, item in enumerate(raw_keys):
+            if not isinstance(item, dict):
+                raise ValueError(
+                    f"Vault project field 'keys' contains an invalid record at index {index}."
+                )
+        keys = [GpgKey.from_dict(item) for item in raw_keys]
         return cls(
             id=str(data.get("id") or uuid4().hex),
             name=str(data.get("name", "Untitled Project")),
