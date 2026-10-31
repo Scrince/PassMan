@@ -86,8 +86,9 @@ In scope:
 
   File tampering:
       An attacker modifies ciphertext, salt, nonce, KDF parameters, or JSON
-      structure. Most tampering causes unlock failure. Header fields are not
-      bound as AES-GCM additional data; see Encryption.txt for exact details.
+      structure. Version 2 authenticates all parsed header fields as AES-GCM
+      additional data. Legacy version 1 headers are not authenticated; see
+      Encryption.txt for exact details.
 
   Weak master password:
       An attacker performs offline guessing against a stolen vault. Argon2id
@@ -379,6 +380,13 @@ PassMan search can match:
   - notes
   - created timestamp
   - modified timestamp
+  - project names, descriptions, public key text, key roles, fingerprints,
+    key IDs, filenames, and key notes
+  - authenticator names, issuers, types, and notes
+  - recovery names, services, codes, and notes
+  - seed names, wallet labels, word counts, phrases, passphrases, and notes
+
+Search does not inspect the raw binary bytes of stored private .key files.
 
 Operational consequences:
 
@@ -601,21 +609,29 @@ treated as a Class D secret.
 Platform-Specific Notes
 -----------------------
 
+When creating a new vault, PassMan asks the user to select its directory and
+remembers that directory in application settings outside the encrypted vault.
+The platform paths below are initial defaults before a directory is selected.
+
 Windows:
 
   - PassMan.exe is PGP-signed as a release artifact (PassMan.exe.asc).
-  - The v1.0.0 Windows executable and checksum manifests were refreshed and
-    verified on 2026-10-17; see docs/WindowsRelease.txt.
+  - The v1.0.5 Windows executable and installer are the current Windows
+    release and are OpenPGP-signed; see
+    docs/WindowsRelease.txt for hashes and verification instructions.
   - The executable is not Authenticode-signed unless separately documented.
   - Windows may show an unknown-publisher warning.
+  - A user-selected vault directory may be anywhere the user can write; keep
+    it on storage protected with appropriate filesystem permissions and
+    include it in encrypted-vault backup planning.
   - Do not treat vault.dat or vault.dat.bak beside the exe as signed
     release packages; only the application binary is in SHA256SUMS.
   - Verify SHA256SUMS and .asc signatures before first run.
 
 macOS:
 
-  - All three DMGs (arm64, x64, universal) are PGP-signed as release
-    artifacts; see docs/MacOSRelease.txt for hashes and verification.
+  - The v1.0.7 DMGs (arm64, x64, universal) are PGP-signed as release
+    artifacts; see docs/MacOSRelease-v1.0.7.txt for hashes and verification.
   - App bundles may be ad-hoc codesigned during local packaging; build.py does
     not perform Developer ID signing or notarization.
   - The builds are not Apple Developer ID notarized unless separately
@@ -627,8 +643,9 @@ macOS:
 
 Linux:
 
-  - The Linux x64 tarball and .deb are PGP-signed as release artifacts;
-    see docs/LinuxRelease.txt for hashes and verification.
+  - The v1.0.7 Ubuntu 24.04 Linux x64 tarball and .deb are PGP-signed as
+    release artifacts; see docs/LinuxRelease-v1.0.7.txt for hashes and
+    verification.
   - The .deb is not part of a signed apt repository unless separately
     documented.
   - Frozen Linux builds store vault.dat under XDG_DATA_HOME/PassMan.
