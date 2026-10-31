@@ -1,11 +1,11 @@
 #define AppName "PassMan"
 
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "1.0.7"
 #endif
 
 #ifndef AppExePath
-  #define AppExePath "..\release\v1.0.0\windows\PassMan.exe"
+  #define AppExePath "..\release\v1.0.7\windows\PassMan.exe"
 #endif
 
 [Setup]
