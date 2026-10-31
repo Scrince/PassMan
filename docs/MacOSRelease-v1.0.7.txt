@@ -1,0 +1,67 @@
+PassMan v1.0.7 - macOS Release
+==============================
+
+Build details
+-------------
+
+Built on macOS 15.7.7 with Python 3.14.0, PyInstaller 6.22.3, and PyQt6 / Qt
+6.11.0. The release provides native Apple Silicon and Intel disk images plus
+a universal2 image. The universal app combines the arm64 and x86_64 native
+bundles; all 80 Mach-O files contain both architecture slices.
+
+The x86_64 cryptography extension was built from source and linked statically
+against OpenSSL 3.6.3. The DMGs contain ad-hoc code-signed apps; they are not
+Developer ID signed or notarized, so Gatekeeper may show a warning when
+opening a downloaded app.
+
+Release artifacts
+-----------------
+
+  PassMan-macOS-arm64.dmg and detached .asc signature
+  PassMan-macOS-x64.dmg and detached .asc signature
+  PassMan-macOS-universal.dmg and detached .asc signature
+  SBOM.cdx.json and detached .asc signature
+  SHA256SUMS and detached .asc signature
+
+SHA-256 verification
+--------------------
+
+From this directory:
+
+  shasum -a 256 -c SHA256SUMS
+
+Package hashes:
+
+  adb8deeddedc149290d5bd0e80e338291a4ddacf2d06227c95aabc10c780a2d6  PassMan-macOS-arm64.dmg
+  e6f611771aaa738c1fc9b0659beda8c50286e4dea344415fb3e5db2e477bb1e9  PassMan-macOS-x64.dmg
+  34cce9d28aa326ebab40dcdbafec45d08496799539a9f2b1386961549abec00c  PassMan-macOS-universal.dmg
+  d90330e251f6ac65efc7c16bfc7781ef97a56d477fa41ede9472086360951716  SBOM.cdx.json
+
+OpenPGP verification
+--------------------
+
+Release key identity: PassMan Release Signing (2026) <release@passman.local>
+Primary fingerprint: 7858 E51C 98AD 2541 5098 9EF3 1F4D F0EB 1C80 C710
+
+From the repository root, import the public key and verify the aggregate
+manifest:
+
+  gpg --import docs/PassMan_Release_Signing_2026_pubkey.asc
+  gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
+  shasum -a 256 -c docs/SHA256SUMS
+
+From this directory, verify the platform manifest, packages, and SBOM:
+
+  gpg --verify SHA256SUMS.asc SHA256SUMS
+  gpg --verify PassMan-macOS-arm64.dmg.asc PassMan-macOS-arm64.dmg
+  gpg --verify PassMan-macOS-x64.dmg.asc PassMan-macOS-x64.dmg
+  gpg --verify PassMan-macOS-universal.dmg.asc PassMan-macOS-universal.dmg
+  gpg --verify SBOM.cdx.json.asc SBOM.cdx.json
+
+Cross-platform release status
+-----------------------------
+
+The v1.0.7 Windows executable, installer, SBOM, and signatures are available
+under `release/v1.0.7/windows/`. The Linux packages are documented in
+`docs/LinuxRelease-v1.0.7.txt`; the Windows build and verification details are
+in `docs/WindowsRelease.txt`.
