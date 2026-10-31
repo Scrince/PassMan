@@ -108,12 +108,12 @@ Linux vault location (frozen build):
   # or ~/.local/share/PassMan/vault.dat
 
 
-Ubuntu 24.04 LTS release build
-------------------------------
+Ubuntu 24.04 LTS Linux build
+----------------------------
 
-The v1.0.2 Ubuntu-targeted packages are built inside official Ubuntu 24.04
-(Noble) Docker images. Use one container per target architecture; on Apple
-Silicon, amd64 builds run through Docker emulation.
+Ubuntu 24.04 (Noble) packages can be built inside official Ubuntu Docker
+images. Use one container per target architecture; on Apple Silicon, amd64
+builds run through Docker emulation.
 
 The build uses Ubuntu's Python 3.12 and the same pinned requirements as the
 other releases. Install the Linux prerequisites above plus `python3.12-dev`
@@ -122,7 +122,7 @@ other releases. Install the Linux prerequisites above plus `python3.12-dev`
   python build.py --platform linux
 
 Keep each platform's release artifacts in its own folder directly under the
-version directory, matching the v1.0.0 layout:
+version directory:
 
   release/v<version>/windows/
   release/v<version>/macos/
@@ -141,9 +141,8 @@ they remain part of the Linux release suite:
 
 Sign each archive and Debian package with the release key. Create and sign a
 `SHA256SUMS` manifest beside them, then update and re-sign `docs/SHA256SUMS`.
-The v1.0.2 Ubuntu artifacts are stored under
-`release/v1.0.2/linux/ubuntu-24.04/`. See `docs/UbuntuRelease.txt` for the
-artifact details and verification steps.
+The retained v1.0.7 Ubuntu x64 packages and their verification instructions
+are under `release/v1.0.7/linux/` and in `docs/LinuxRelease-v1.0.7.txt`.
 
 
 macOS build (Apple Silicon, Intel, or universal2)
