@@ -30,6 +30,7 @@ from models.key_project import (
     role_display,
 )
 from utils.gpg_metadata import apply_identity_to_fields, describe_extraction_failure
+from utils.secure_files import write_private_file
 
 
 class NoWheelComboBox(QComboBox):
@@ -201,7 +202,7 @@ class KeyEditorRow(QFrame):
         if path.suffix.lower() != ".key":
             path = path.with_suffix(".key")
         try:
-            path.write_bytes(GpgKey(key_data_b64=self._key_data_b64).key_file_bytes())
+            write_private_file(path, GpgKey(key_data_b64=self._key_data_b64).key_file_bytes())
         except Exception as exc:
             QMessageBox.warning(self, "Export failed", f"Could not write file:\n{exc}")
             return

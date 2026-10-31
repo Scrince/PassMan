@@ -22,6 +22,7 @@ from models.vault_model import VaultModel
 
 VAULT_VERSION = 2
 LEGACY_VAULT_VERSION = 1
+VAULT_SALT_SIZE = 16
 
 
 class VaultError(Exception):
@@ -224,6 +225,8 @@ class Vault:
             if header.get("algorithm") != ALGORITHM:
                 raise VaultFormatError("Vault encryption algorithm is unsupported.")
             salt = _unb64(str(header["salt"]))
+            if len(salt) != VAULT_SALT_SIZE:
+                raise VaultFormatError("Vault file has an invalid salt.")
             nonce = _unb64(str(header["nonce"]))
             raw_kdf = header.get("kdf")
             kdf = sanitize_kdf_params(raw_kdf if isinstance(raw_kdf, dict) else None)

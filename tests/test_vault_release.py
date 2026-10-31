@@ -17,7 +17,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # noqa: E402
 from crypto import vault as vault_module  # noqa: E402
 from crypto.encryption import ALGORITHM, new_nonce  # noqa: E402
 from crypto.key_derivation import derive_key  # noqa: E402
-from crypto.vault import InvalidPasswordError, Vault, VAULT_VERSION  # noqa: E402
+from crypto.vault import InvalidPasswordError, Vault, VaultFormatError, VAULT_VERSION  # noqa: E402
 
 
 PASSWORD = "test master password"
@@ -71,6 +71,26 @@ class VaultReleaseTests(unittest.TestCase):
         document["header"]["added_metadata"] = "tampered"
         path.write_text(json.dumps(document), encoding="utf-8")
         with self.assertRaises(InvalidPasswordError):
+            Vault(path).unlock(PASSWORD)
+
+    def test_rejects_invalid_salt_as_malformed_vault(self) -> None:
+        path = self.folder / "vault.dat"
+        path.write_text(
+            json.dumps(
+                {
+                    "header": {
+                        "version": VAULT_VERSION,
+                        "algorithm": ALGORITHM,
+                        "salt": b64(b"short"),
+                        "nonce": b64(new_nonce()),
+                        "kdf": TEST_KDF,
+                    },
+                    "payload": b64(b"not used"),
+                }
+            ),
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(VaultFormatError, "invalid salt"):
             Vault(path).unlock(PASSWORD)
 
     def test_legacy_v1_unlock_migrates_to_v2_and_keeps_v1_backup(self) -> None:

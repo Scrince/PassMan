@@ -567,6 +567,7 @@ def _skip_mpi(body: bytes, offset: int) -> int:
 def _v4_fingerprint(public_key_body: bytes) -> str:
     length = len(public_key_body)
     prefix = bytes([0x99, (length >> 8) & 0xFF, length & 0xFF])
+    # RFC 9580 §5.5.4.2 mandates SHA-1 here; this is an identifier, not authentication.
     return hashlib.sha1(prefix + public_key_body).hexdigest().upper()
 
 
