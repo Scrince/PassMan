@@ -8,7 +8,6 @@ from uuid import uuid4
 from .entry import utc_now_iso
 
 
-# OpenPGP key usage / capability flags commonly shown as C/S/E/A.
 GPG_ROLE_CODES = ("C", "S", "E", "A")
 GPG_ROLE_LABELS: dict[str, str] = {
     "C": "Certify",
@@ -113,7 +112,6 @@ class GpgKey:
         key_filename = str(data.get("key_filename", "") or "")
         key_data_b64 = str(data.get("key_data_b64", "") or "")
 
-        # Migrate older builds that stored private key material as private_asc text.
         if not key_data_b64:
             legacy = data.get("private_asc")
             if isinstance(legacy, str) and legacy.strip():

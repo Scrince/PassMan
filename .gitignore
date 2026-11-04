@@ -15,22 +15,21 @@ __pycache__/
 .venv/
 .venv-*/
 
-# Build outputs and local release artifacts
 build/
 dist/
 /release/
-
 # Top-level branding kit only (application icons live under src/assets/).
 /assets/
 *.log
 
 # Local encrypted vault data
+*.dat
+*.dat.*
+*.bak
+*.bak.*
 vault.dat
 vault.dat.bak
 vault.dat.*
-**/vault.dat
-**/vault.dat.bak
-**/vault.dat.*
 
 # Repo-local GPG release keyring: keep private/volatile material out of git.
 .gnupg-release/
@@ -40,3 +39,10 @@ vault.dat.*
 *.pem
 *.pfx
 *.p12
+# Runtime vault data must always be ignored.
+**/vault.dat
+**/vault.dat.bak
+**/vault.dat.*
+
+# Release artifacts are stored on GitHub Releases, not tracked in source Git.
+/release/

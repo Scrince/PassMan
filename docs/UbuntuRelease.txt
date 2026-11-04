@@ -1,0 +1,100 @@
+PassMan v1.0.2 - Ubuntu 24.04 LTS Release
+==========================================
+
+Target and build environment
+----------------------------
+
+These packages are built in Ubuntu 24.04 LTS (Noble) Docker containers for
+both x86-64/amd64 and ARM64/arm64. The ARM64 container ran natively on the
+Apple Silicon build host; the amd64 container used Docker emulation.
+
+Build tool versions:
+
+  Ubuntu 24.04 LTS
+  Python 3.12.3
+  glibc 2.39
+  PyInstaller 6.21.0
+  PyQt6 / Qt6 6.11.0
+
+The application is packaged with PyInstaller as an onedir bundle. The Ubuntu
+`.deb` files use the Debian package format and declare their architecture as
+`amd64` or `arm64`. They are standalone packages, not packages from an APT
+repository. The ARM64 PyQt6 6.11 wheel targets glibc 2.39; Ubuntu 24.04 provides that
+version. This release is built and intended for Ubuntu 24.04 LTS. Older Ubuntu
+releases are not claimed as supported by this build.
+
+Release artifacts
+-----------------
+
+x86-64 / Debian amd64:
+
+  release/v1.0.2/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-x64.tar.gz
+  release/v1.0.2/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-x64.deb
+
+ARM64 / Debian arm64:
+
+  release/v1.0.2/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-arm64.tar.gz
+  release/v1.0.2/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-arm64.deb
+
+Each archive and Debian package has an adjacent detached ASCII-armored OpenPGP
+signature. The per-release checksum manifest is also signed:
+
+  release/v1.0.2/linux/ubuntu-24.04/SHA256SUMS
+  release/v1.0.2/linux/ubuntu-24.04/SHA256SUMS.asc
+
+The aggregate manifest in `docs/SHA256SUMS` includes these four packages and
+has a detached signature at `docs/SHA256SUMS.asc`. SHA256SUMS lists the package
+files, not their detached `.asc` signature files.
+
+Checksum verification
+---------------------
+
+SHA-256 values for the four Ubuntu 24.04 packages:
+
+  d2f89f0482d194906fd27d37026259f249eb7f13b2504064b1949bdd59a613e7  PassMan-Ubuntu-24.04-x64.tar.gz
+  7a847a63a03a71bb395014ef414f7442923b01e309b859860d2e0304257bab72  PassMan-Ubuntu-24.04-x64.deb
+  3c9e9e4da6b0211a55def65860c33079787aac69394af1d631442021df174472  PassMan-Ubuntu-24.04-arm64.tar.gz
+  63e55d869e415652ea5830e1a2afdfe90417cf4628ffe397b3d0436aab4d2928  PassMan-Ubuntu-24.04-arm64.deb
+
+From the repository root:
+
+  shasum -a 256 -c docs/SHA256SUMS
+
+From the Ubuntu release directory:
+
+  cd release/v1.0.2/linux/ubuntu-24.04
+  sha256sum -c SHA256SUMS
+
+Signature verification
+----------------------
+
+Public key:
+
+  docs/PassMan_Release_Signing_2026_pubkey.asc
+  Fingerprint: 7858 E51C 98AD 2541 5098 9EF3 1F4D F0EB 1C80 C710
+
+Import the key and verify a package and both manifests:
+
+  gpg --import docs/PassMan_Release_Signing_2026_pubkey.asc
+  gpg --verify release/v1.0.2/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-x64.deb.asc \
+               release/v1.0.2/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-x64.deb
+  gpg --verify release/v1.0.2/linux/ubuntu-24.04/SHA256SUMS.asc \
+               release/v1.0.2/linux/ubuntu-24.04/SHA256SUMS
+  gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
+
+Installation
+------------
+
+Install the package matching the system architecture:
+
+  sudo apt install ./release/v1.0.2/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-x64.deb
+  passman
+
+Use the `arm64.deb` package on Ubuntu ARM64. The tar.gz packages can be
+unpacked and launched directly:
+
+  tar -xzf release/v1.0.2/linux/ubuntu-24.04/PassMan-Ubuntu-24.04-x64.tar.gz
+  ./PassMan/PassMan
+
+The desktop GUI requires Ubuntu desktop libraries. Do not include `vault.dat`
+or `vault.dat.bak` with application packages.

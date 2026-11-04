@@ -13,10 +13,9 @@ DEFAULT_KDF_PARAMS = {
     "hash_len": 32,
 }
 
-# Bounds for vault-header KDF params (crafted vaults cannot OOM the process).
 _KDF_TIME_MIN = 1
 _KDF_TIME_MAX = 10
-_KDF_MEMORY_MIN = 8_192  # KiB
+_KDF_MEMORY_MIN = 8_192
 _KDF_MEMORY_MAX = 262_144
 _KDF_PARALLEL_MIN = 1
 _KDF_PARALLEL_MAX = 8

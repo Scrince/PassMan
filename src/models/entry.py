@@ -19,9 +19,10 @@ class Entry:
     id: str = field(default_factory=lambda: uuid4().hex)
     created_at: str = field(default_factory=utc_now_iso)
     modified_at: str = field(default_factory=utc_now_iso)
+    import_source: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data = {
             "id": self.id,
             "name": self.name,
             "type": self.type,
@@ -30,6 +31,9 @@ class Entry:
             "created_at": self.created_at,
             "modified_at": self.modified_at,
         }
+        if self.import_source:
+            data["import_source"] = self.import_source
+        return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Entry":
@@ -45,6 +49,7 @@ class Entry:
             notes=str(data.get("notes", "")),
             created_at=created_at,
             modified_at=str(data.get("modified_at") or created_at),
+            import_source=str(data.get("import_source") or ""),
         )
 
     def mark_modified(self) -> None:

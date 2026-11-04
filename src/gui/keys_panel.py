@@ -95,8 +95,8 @@ class ProjectCard(QFrame):
     delete_requested = pyqtSignal(str)
     copy_public_requested = pyqtSignal(str)
     export_public_requested = pyqtSignal(str)
-    view_key_requested = pyqtSignal(str, str)  # project_id, key_id
-    export_key_requested = pyqtSignal(str, str)  # project_id, key_id
+    view_key_requested = pyqtSignal(str, str)
+    export_key_requested = pyqtSignal(str, str)
     copy_text_requested = pyqtSignal(str)
 
     def __init__(self, project: KeyProject) -> None:
@@ -561,7 +561,6 @@ def _key_bytes_as_text(raw: bytes) -> tuple[str, str]:
         return raw.decode("utf-8"), ""
     except UnicodeDecodeError:
         pass
-    # Prefer a lossless text form for binary keys so Copy All stays useful.
     note = (
         "Note: this .key file is binary (not plain UTF-8 text). "
         "Showing Base64 so you can still copy it. Prefer Export Key for the original bytes."

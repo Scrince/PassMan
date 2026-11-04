@@ -17,7 +17,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from crypto.yellowsphere_arc import (  # noqa: E402
+from crypto.yellowsphere_arc import (  # noqa: E402 - source path setup above
     ArcImportError,
     ArcExportError,
     export_arc_bytes,

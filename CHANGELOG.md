@@ -4,6 +4,30 @@ All notable changes to PassMan are documented in this file.
 
 This project follows a simple versioned changelog. Dates use `YYYY-MM-DD`.
 
+## 1.0.8 - 2026-11-03
+
+### Added
+
+- Added import of password entries from Apple Passwords CSV exports, including titles, URLs, usernames, passwords, and notes.
+- Added the **Import** action to the left sidebar for Apple Passwords CSV files.
+- Added a review prompt showing additions, updates, unchanged records, and deletions before applying Apple Passwords imports.
+- Apple Passwords imports track their own entries, update changed logins, and delete previously imported entries missing from a later CSV. Manually created entries remain untouched.
+- Apple Passwords CSV imports also add, update, and reconcile valid `OTPAuth` codes in Authenticator mode. Malformed nonempty `OTPAuth` values stop the import before changes are applied.
+
+### Fixed
+
+- Preserved leading and trailing spaces in imported passwords and cleared stored passwords when the next complete CSV has an empty Password cell.
+- Kept entry identity and custom fields when a unique Apple account changes its website URL path.
+- Rejected malformed URLs and incomplete CSV rows before the import preview or vault changes.
+
+### Release
+
+- Built the Windows x64 executable, installer, and CycloneDX SBOM with locked dependencies; signed the executable and installer with the local Authenticode certificate and signed all release artifacts and manifests with OpenPGP.
+- Published v1.0.8 packages, SBOMs, OpenPGP signatures, and checksum manifests on GitHub Releases; excluded vault data and private signing material from the source commit and release uploads.
+- Built and signed macOS arm64, x86_64, and universal2 DMGs with a CycloneDX SBOM and verified package, platform, and aggregate checksum signatures.
+- Built and signed the Ubuntu 24.04 Linux x64 standalone tarball and Debian package in Docker, with a CycloneDX SBOM and verified checksums.
+- Corrected Debian package tar headers so the v1.0.8 package installs with `dpkg` on Ubuntu 24.04.
+
 ## 1.0.7 - 2026-10-30
 
 ### Fixed

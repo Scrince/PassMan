@@ -15,7 +15,6 @@ def enable_resize_and_maximize(window: QWidget) -> None:
         | Qt.WindowType.WindowCloseButtonHint
     )
     window.setWindowFlags(flags)
-    # Clear any accidental maximum-size lock so the window can grow freely.
     window.setMaximumSize(16777215, 16777215)
     if isinstance(window, QDialog):
         window.setSizeGripEnabled(True)
@@ -53,14 +52,13 @@ class ResizableDialog(QDialog):
         enable_resize_and_maximize(self)
         self._did_center = False
 
-    def showEvent(self, event: QShowEvent) -> None:  # type: ignore[override]
+    def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)
         if not self._did_center:
-            # Center after first show so maximize/title controls stay on-screen.
             center_widget_on_screen(self)
             self._did_center = True
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:  # type: ignore[override]
+    def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_F11:
             toggle_fullscreen(self)
             return
@@ -76,13 +74,13 @@ class ResizableMainWindow(QMainWindow):
         self.setMinimumSize(640, 480)
         self._did_center = False
 
-    def showEvent(self, event: QShowEvent) -> None:  # type: ignore[override]
+    def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)
         if not self._did_center:
             center_widget_on_screen(self)
             self._did_center = True
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:  # type: ignore[override]
+    def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_F11:
             toggle_fullscreen(self)
             return

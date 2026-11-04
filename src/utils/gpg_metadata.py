@@ -11,10 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-# OpenPGP OIDs used by GnuPG for modern curves.
-_ED25519_OID = bytes.fromhex("2B06010401DA470F01")  # 1.3.6.1.4.1.11591.15.1
-_CV25519_OID = bytes.fromhex("2B060104019755010501")  # 1.3.6.1.4.1.3029.1.5.1
-# Default KDF params used by GnuPG for Curve25519 ECDH public material.
+_ED25519_OID = bytes.fromhex("2B06010401DA470F01")
+_CV25519_OID = bytes.fromhex("2B060104019755010501")
 _ECDH_KDF_PARAMS = bytes([0x03, 0x01, 0x08, 0x07])
 
 
@@ -22,9 +20,9 @@ _ECDH_KDF_PARAMS = bytes([0x03, 0x01, 0x08, 0x07])
 class KeyIdentity:
     fingerprint: str = ""
     key_id: str = ""
-    role: str = ""  # C/S/E/A when known
+    role: str = ""
     label: str = ""
-    source: str = ""  # openpgp | gnupg-native | gpg
+    source: str = ""
 
 
 def extract_key_identities(raw: bytes, filename: str = "") -> list[KeyIdentity]:
@@ -32,7 +30,6 @@ def extract_key_identities(raw: bytes, filename: str = "") -> list[KeyIdentity]:
     if not raw:
         return []
 
-    # Prefer native/OpenPGP parsers first so frozen builds work without gpg on PATH.
     identities = _extract_via_gnupg_native(raw, filename)
     if identities:
         return identities
@@ -45,7 +42,6 @@ def extract_key_identities(raw: bytes, filename: str = "") -> list[KeyIdentity]:
     if identities:
         return identities
 
-    # Keygrip filename alone can sometimes be resolved against the local keyring.
     grip = _keygrip_from_filename(filename)
     if grip:
         resolved = _resolve_keygrip_via_gpg(grip)
@@ -106,9 +102,6 @@ def describe_extraction_failure(raw: bytes, filename: str = "") -> str:
     )
 
 
-# ---------------------------------------------------------------------------
-# GnuPG native private-keys-v1.d format
-# ---------------------------------------------------------------------------
 
 
 def _extract_via_gnupg_native(raw: bytes, filename: str = "") -> list[KeyIdentity]:
@@ -117,7 +110,6 @@ def _extract_via_gnupg_native(raw: bytes, filename: str = "") -> list[KeyIdentit
     except UnicodeDecodeError:
         return []
     if "Created:" not in text or "(private-key" not in text:
-        # protected-private-key has no usable public params for fingerprinting here
         return []
     if "(protected-private-key" in text and "(private-key" not in text.replace("protected-private-key", ""):
         return []
@@ -137,7 +129,7 @@ def _extract_via_gnupg_native(raw: bytes, filename: str = "") -> list[KeyIdentit
         body = (
             bytes([4])
             + int(created).to_bytes(4, "big")
-            + bytes([1])  # RSA
+            + bytes([1])
             + _mpi_encode(n)
             + _mpi_encode(e)
         )
@@ -149,12 +141,11 @@ def _extract_via_gnupg_native(raw: bytes, filename: str = "") -> list[KeyIdentit
         body = (
             bytes([4])
             + int(created).to_bytes(4, "big")
-            + bytes([22])  # EdDSA
+            + bytes([22])
             + bytes([len(_ED25519_OID)])
             + _ED25519_OID
             + _mpi_encode(q)
         )
-        # S and A both use Ed25519; leave role empty unless caller prefers one.
         role_hint = ""
     elif re.search(r"curve\s+Curve25519", text, re.I):
         q = _parse_gnupg_hex_token(text, "q")
@@ -163,7 +154,7 @@ def _extract_via_gnupg_native(raw: bytes, filename: str = "") -> list[KeyIdentit
         body = (
             bytes([4])
             + int(created).to_bytes(4, "big")
-            + bytes([18])  # ECDH
+            + bytes([18])
             + bytes([len(_CV25519_OID)])
             + _CV25519_OID
             + _mpi_encode(q)
@@ -196,7 +187,6 @@ def _parse_gnupg_created(text: str) -> int | None:
 
 
 def _parse_gnupg_hex_token(text: str, name: str) -> bytes | None:
-    # Matches: (n #HEX WITH SPACES AND NEWLINES#)
     pattern = re.compile(rf"\(\s*{re.escape(name)}\s*#([0-9A-Fa-f\s]+)#\s*\)", re.S)
     match = pattern.search(text)
     if not match:
@@ -224,9 +214,6 @@ def _keygrip_from_filename(filename: str) -> str:
     return ""
 
 
-# ---------------------------------------------------------------------------
-# gpg CLI helpers
-# ---------------------------------------------------------------------------
 
 
 def _find_gpg() -> str | None:
@@ -306,10 +293,8 @@ def _parse_gpg_colon_output(text: str) -> list[KeyIdentity]:
         line = raw_line.strip()
         if not line:
             continue
-        # gpg --list-packets style: "keyid: 1F4DF0EB1C80C710"
         keyid_match = re.search(r"keyid[:\s]+([0-9A-Fa-f]{8,40})", line, re.I)
         if keyid_match and ":" not in line.split()[0]:
-            # Only use list-packets keyid if we cannot find colon fingerprints later.
             pass
         if ":" not in line:
             continue
@@ -337,7 +322,6 @@ def _parse_gpg_colon_output(text: str) -> list[KeyIdentity]:
     if identities:
         return identities
 
-    # Fallback: parse list-packets keyids (no full fingerprint available).
     for raw_line in text.splitlines():
         match = re.search(r"keyid[:\s]+([0-9A-Fa-f]{16})", raw_line, re.I)
         if match:
@@ -406,9 +390,6 @@ def _roles_from_capability_field(field: str) -> str:
     return ""
 
 
-# ---------------------------------------------------------------------------
-# OpenPGP binary / armored packets
-# ---------------------------------------------------------------------------
 
 
 def _extract_via_openpgp_parse(raw: bytes) -> list[KeyIdentity]:
@@ -567,7 +548,6 @@ def _skip_mpi(body: bytes, offset: int) -> int:
 def _v4_fingerprint(public_key_body: bytes) -> str:
     length = len(public_key_body)
     prefix = bytes([0x99, (length >> 8) & 0xFF, length & 0xFF])
-    # RFC 9580 §5.5.4.2 mandates SHA-1 here; this is an identifier, not authentication.
     return hashlib.sha1(prefix + public_key_body).hexdigest().upper()
 
 

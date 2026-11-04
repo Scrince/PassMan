@@ -547,7 +547,7 @@ PassMan release verification files:
   docs/SHA256SUMS
   docs/SHA256SUMS.asc
   docs/PassMan_Release_Signing_2026_pubkey.asc
-  release/v1.0.7/*/*.asc
+  release/v1.0.0/*/*.asc
 
 Release signing key:
 
@@ -570,7 +570,7 @@ Verification sequence:
 
   4. Verify artifact checksums:
 
-       cd release/v1.0.7/windows
+       cd release/v1.0.0/windows
        shasum -a 256 -c SHA256SUMS
 
   5. Optionally verify the artifact directly:
@@ -616,22 +616,23 @@ The platform paths below are initial defaults before a directory is selected.
 Windows:
 
   - PassMan.exe is PGP-signed as a release artifact (PassMan.exe.asc).
-  - The v1.0.7 Windows executable and installer are the current Windows
+  - The v1.0.8 Windows executable and installer are the current local Windows
     release and are OpenPGP-signed; see
     docs/WindowsRelease.txt for hashes and verification instructions.
-  - The executable is not Authenticode-signed unless separately documented.
+  - The v1.0.8 executable and installer also use a local self-signed
+    Authenticode certificate; this is not a publicly trusted publisher identity.
   - Windows may show an unknown-publisher warning.
   - A user-selected vault directory may be anywhere the user can write; keep
     it on storage protected with appropriate filesystem permissions and
     include it in encrypted-vault backup planning.
   - Do not treat vault.dat or vault.dat.bak beside the exe as signed
-    release packages; only the application binary is in SHA256SUMS.
+    release packages. SHA256SUMS lists only the executable, installer, and SBOM.
   - Verify SHA256SUMS and .asc signatures before first run.
 
 macOS:
 
-  - The v1.0.7 DMGs (arm64, x64, universal) are PGP-signed as release
-    artifacts; see docs/MacOSRelease-v1.0.7.txt for hashes and verification.
+  - The v1.0.8 DMGs (arm64, x64, universal) are PGP-signed as local release
+    artifacts; see docs/MacOSRelease-v1.0.8.txt for hashes and verification.
   - App bundles may be ad-hoc codesigned during local packaging; build.py does
     not perform Developer ID signing or notarization.
   - The builds are not Apple Developer ID notarized unless separately
@@ -643,8 +644,8 @@ macOS:
 
 Linux:
 
-  - The v1.0.7 Ubuntu 24.04 Linux x64 tarball and .deb are PGP-signed as
-    release artifacts; see docs/LinuxRelease-v1.0.7.txt for hashes and
+  - The v1.0.8 Ubuntu 24.04 Linux x64 tarball and .deb are PGP-signed as
+    local release artifacts; see docs/LinuxRelease-v1.0.8.txt for hashes and
     verification.
   - The .deb is not part of a signed apt repository unless separately
     documented.

@@ -3,6 +3,25 @@
 This procedure describes the checks for a PassMan source release. Platform
 packages must be built on native Windows, macOS, and Linux runners or machines.
 
+## Local release delivery
+
+For a requested local-only release, build from the current working tree and
+record that provenance in the platform notes. Run the same local lint, tests,
+package smoke checks, checksum checks, and public-key signature verification
+described below. Do not describe a working-tree build as a reviewed tagged
+source release or as CI-verified. Creating a tag and publishing to GitHub are
+separate steps in the source-release procedure.
+
+On Windows, apply Authenticode signing to the executable before packaging it
+in the installer, then sign the installer. Generate OpenPGP signatures and
+checksums from the final bytes. See `docs/Build.txt` for the local certificate
+and signing sequence; a self-signed certificate does not provide public
+publisher trust.
+
+Deliver only explicitly listed packages, SBOMs, checksum manifests, detached
+signatures, and public keys. Local release directories can contain private
+runtime vault files; never archive or upload a release tree recursively.
+
 ## Prepare
 
 1. Create a release pull request from a clean branch based on `main`.

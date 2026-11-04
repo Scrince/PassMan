@@ -1,0 +1,69 @@
+PassMan v1.0.6 - macOS Release
+==============================
+
+Build details
+-------------
+
+Built on macOS 15.7.7 with Python 3.14.0, PyInstaller 6.22.3, and PyQt6 / Qt
+6.11.0. The release provides native Apple Silicon and Intel disk images plus
+a universal2 image. The universal app combines the arm64 and x86_64 native
+bundles and contains both architecture slices in every Mach-O file.
+
+The x86_64 cryptography 50.0.2 extension was built from source and linked
+statically against OpenSSL 3.6.3. It has no runtime OpenSSL library dependency.
+The arm64 build uses the cryptography 50.0.2 macOS wheel. The DMGs contain
+ad-hoc code-signed apps; they are not Developer ID signed or notarized, so
+Gatekeeper may show a warning when opening a downloaded app.
+
+Release artifacts
+-----------------
+
+  release/v1.0.6/macos/PassMan-macOS-arm64.dmg
+  release/v1.0.6/macos/PassMan-macOS-arm64.dmg.asc
+  release/v1.0.6/macos/PassMan-macOS-x64.dmg
+  release/v1.0.6/macos/PassMan-macOS-x64.dmg.asc
+  release/v1.0.6/macos/PassMan-macOS-universal.dmg
+  release/v1.0.6/macos/PassMan-macOS-universal.dmg.asc
+  release/v1.0.6/macos/SBOM.cdx.json
+  release/v1.0.6/macos/SBOM.cdx.json.asc
+  release/v1.0.6/macos/SHA256SUMS
+  release/v1.0.6/macos/SHA256SUMS.asc
+
+SHA-256 verification
+--------------------
+
+From the release directory:
+
+  cd release/v1.0.6/macos
+  shasum -a 256 -c SHA256SUMS
+
+The package checksums are:
+
+  f865fb68361565d8643c6845995c8fca857d799fc7dd0d0348d1183431d96006  PassMan-macOS-arm64.dmg
+  c688319260ee1baf54e5d68f48dc041ae16e0d7d2f2e8993773610ce18123adc  PassMan-macOS-x64.dmg
+  77690f010e268fd10c8969483333199b10f26c77712a3e6f5cbc3191e114d36e  PassMan-macOS-universal.dmg
+  bc74253f0cd49da6a0204cffc1f62c83a087d8e2de401fee1107ea92131e1409  SBOM.cdx.json
+
+OpenPGP verification
+--------------------
+
+Release key identity: PassMan Release Signing (2026) <release@passman.local>
+Primary fingerprint: 7858 E51C 98AD 2541 5098 9EF3 1F4D F0EB 1C80 C710
+
+From the repository root, import `docs/PassMan_Release_Signing_2026_pubkey.asc`
+and verify the aggregate manifest:
+
+  gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
+
+From the release directory, verify the platform manifest and packages:
+
+  cd release/v1.0.6/macos
+  gpg --verify SHA256SUMS.asc SHA256SUMS
+  gpg --verify PassMan-macOS-arm64.dmg.asc PassMan-macOS-arm64.dmg
+  gpg --verify PassMan-macOS-x64.dmg.asc PassMan-macOS-x64.dmg
+  gpg --verify PassMan-macOS-universal.dmg.asc PassMan-macOS-universal.dmg
+  gpg --verify SBOM.cdx.json.asc SBOM.cdx.json
+
+From the repository root, verify all package hashes in the aggregate manifest:
+
+  shasum -a 256 -c docs/SHA256SUMS

@@ -10,9 +10,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from PyQt6.QtWidgets import QApplication  # noqa: E402
+from PyQt6.QtWidgets import QApplication  # noqa: E402 - Qt environment setup above
 
-from gui.settings_window import SettingsWindow  # noqa: E402
+from gui.settings_window import SettingsWindow  # noqa: E402 - source path setup above
 
 
 class SettingsAccessibilityTests(unittest.TestCase):

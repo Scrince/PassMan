@@ -54,7 +54,6 @@ class AuthenticatorEditorDialog(ResizableDialog):
         self.secret_edit.setPlaceholderText("Base32 secret")
         self.secret_edit.setEchoMode(QLineEdit.EchoMode.Password)
 
-        # Add room for about ten more characters than the default line edit hint.
         text_field_width = (
             self.name_edit.sizeHint().width()
             + self.name_edit.fontMetrics().horizontalAdvance("0" * 10)
@@ -131,7 +130,6 @@ class AuthenticatorEditorDialog(ResizableDialog):
             QMessageBox.warning(self, "Missing secret", "Authenticator secret is required.")
             return
         try:
-            # Validate by constructing entry and generating a code.
             entry = self.entry()
             entry.current_code()
         except Exception as exc:
@@ -411,13 +409,13 @@ class AuthenticatorPanel(QWidget):
 
         self.refresh()
 
-    def showEvent(self, event) -> None:  # type: ignore[override]
+    def showEvent(self, event) -> None:
         super().showEvent(event)
         if not self._tick.isActive():
             self._tick.start()
         self._refresh_codes()
 
-    def hideEvent(self, event) -> None:  # type: ignore[override]
+    def hideEvent(self, event) -> None:
         self._tick.stop()
         super().hideEvent(event)
 
