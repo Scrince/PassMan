@@ -52,6 +52,10 @@ Seed exports use the YellowSphere ARC V3 password-protected format. The `.arc` f
 ## Security Model
 
 PassMan encrypts vault contents before writing them to disk.
+The [threat model](THREAT_MODEL.md) documents assets, attacker capabilities,
+trust boundaries, and residual risks. The [security policy](SECURITY.md)
+explains supported versions, private vulnerability reporting, and response
+procedures.
 
 - Encryption: `AES-256-GCM`
 - KDF: `Argon2id`
@@ -302,6 +306,7 @@ build.py                  Cross-platform PyInstaller packaging script
 pyproject.toml             Project, build, dependency, and entry-point metadata
 LICENSE                    MIT license
 SECURITY.md                Vulnerability reporting policy
+THREAT_MODEL.md            Assets, trust boundaries, and threat analysis
 scripts/generate_release_sbom.py  CycloneDX build-environment inventory
 requirements.txt          Python dependencies
 PassMan.spec              Portable PyInstaller spec (macOS .app + onedir)
