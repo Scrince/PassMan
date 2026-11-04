@@ -1,4 +1,3 @@
-# -*- mode: python ; coding: utf-8 -*-
 """Portable PyInstaller spec for PassMan.
 
 Uses relative paths only so the same file works on Linux, macOS, and Windows
@@ -15,10 +14,8 @@ import os
 import sys
 from pathlib import Path
 
-# Spec directory is the repo root. SPECPATH is set by PyInstaller when the
-# spec is executed; fall back to this file's location for manual checks.
 try:
-    ROOT = Path(SPECPATH).resolve()  # type: ignore[name-defined]
+    ROOT = Path(SPECPATH).resolve()
 except NameError:
     ROOT = Path(__file__).resolve().parent
 
@@ -37,7 +34,6 @@ TARGET_ARCH = os.environ.get("PASSMAN_TARGET_ARCH") or None
 if TARGET_ARCH in {"", "native", "None"}:
     TARGET_ARCH = None
 
-# Icon selection for the EXE() step.
 if sys.platform == "darwin" and MAC_ICON.exists():
     EXE_ICON = [str(MAC_ICON)]
 elif sys.platform.startswith("win") and WIN_ICON.exists():
@@ -91,8 +87,6 @@ coll = COLLECT(
     name=APP_NAME,
 )
 
-# .app bundle is macOS-only. Keep the name binding so PyInstaller is happy
-# on other platforms when this file is only used for Analysis/COLLECT.
 if sys.platform == "darwin":
     app = BUNDLE(
         coll,

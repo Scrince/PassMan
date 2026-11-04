@@ -93,6 +93,8 @@ Outputs:
   release/v<version>/linux/            Copied release artifacts
 
 Where <arch> is `x64` (amd64) or `arm64` depending on the build host.
+The Debian package uses GNU tar headers for its control and data archives so
+`dpkg` can install it on Ubuntu 24.04.
 
 PyInstaller only (skip tar.gz / .deb):
 
@@ -114,12 +116,12 @@ Linux vault location (frozen build):
   # or ~/.local/share/PassMan/vault.dat
 
 
-Ubuntu 24.04 LTS Linux build
-----------------------------
+Ubuntu 24.04 LTS release build
+------------------------------
 
-Ubuntu 24.04 (Noble) packages can be built inside official Ubuntu Docker
-images. Use one container per target architecture; on Apple Silicon, amd64
-builds run through Docker emulation.
+The v1.0.2 Ubuntu-targeted packages are built inside official Ubuntu 24.04
+(Noble) Docker images. Use one container per target architecture; on Apple
+Silicon, amd64 builds run through Docker emulation.
 
 The build uses Ubuntu's Python 3.12 and the same pinned requirements as the
 other releases. Install the Linux prerequisites above plus `python3.12-dev`
@@ -128,7 +130,7 @@ other releases. Install the Linux prerequisites above plus `python3.12-dev`
   python build.py --platform linux
 
 Keep each platform's release artifacts in its own folder directly under the
-version directory:
+version directory, matching the v1.0.0 layout:
 
   release/v<version>/windows/
   release/v<version>/macos/
@@ -147,8 +149,9 @@ they remain part of the Linux release suite:
 
 Sign each archive and Debian package with the release key. Create and sign a
 `SHA256SUMS` manifest beside them, then update and re-sign `docs/SHA256SUMS`.
-The retained v1.0.7 Ubuntu x64 packages and their verification instructions
-are under `release/v1.0.7/linux/` and in `docs/LinuxRelease-v1.0.7.txt`.
+The v1.0.2 Ubuntu artifacts are stored under
+`release/v1.0.2/linux/ubuntu-24.04/`. See `docs/UbuntuRelease.txt` for the
+artifact details and verification steps.
 
 
 macOS build (Apple Silicon, Intel, or universal2)
@@ -239,6 +242,37 @@ manifests. Each executable has its own detached signature file.
 
 Windows release verification instructions and the current executable hash are
 maintained in `docs/WindowsRelease.txt`.
+
+Windows Authenticode signing (local release)
+--------------------------------------------
+
+build.py does not perform Authenticode signing. The v1.0.8 local Windows
+release was signed separately with the existing self-signed certificate in
+the current user's certificate store. Its public half is distributed at
+docs/PassMan_Local_Code_Signing_2026.cer. Never export the private key.
+
+Sign the executable before compiling the installer, then sign the installer.
+Run from the repository root in PowerShell after installing locked build
+dependencies. Adjust the Inno Setup compiler path for the build machine:
+
+  .venv\Scripts\python.exe build.py --platform windows --skip-package
+  $releaseCert = Get-Item Cert:\CurrentUser\My\554A90C89385DD8C72D2341FF28BE155F3FC511A
+  Set-AuthenticodeSignature -LiteralPath dist/PassMan-1.0.8.exe -Certificate $releaseCert -HashAlgorithm SHA256 -TimestampServer http://timestamp.digicert.com
+  Copy-Item -LiteralPath dist/PassMan-1.0.8.exe -Destination release/v1.0.8/windows/PassMan.exe
+  & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DAppVersion=1.0.8 '/DAppExePath=..\release\v1.0.8\windows\PassMan.exe' installer/PassMan.iss
+  Set-AuthenticodeSignature -LiteralPath dist/PassMan-Setup-1.0.8.exe -Certificate $releaseCert -HashAlgorithm SHA256 -TimestampServer http://timestamp.digicert.com
+  Copy-Item -LiteralPath dist/PassMan-Setup-1.0.8.exe -Destination release/v1.0.8/windows/PassMan-Setup-1.0.8.exe
+
+Inspect each result and stop on a signing or compiler failure. The v1.0.8
+signatures contain DigiCert timestamps. Because the publisher certificate is
+self-signed, Get-AuthenticodeSignature on the build host reports UnknownError
+with an untrusted-root message. This does not establish a publicly trusted
+publisher or SmartScreen reputation. OpenPGP verifies the final distributed
+bytes independently. Do not change machine trust settings just to suppress
+the warning.
+
+Generate the SBOM, OpenPGP signatures, and checksums only after the final
+Authenticode signing step. A rebuild or subsequent signing changes file hashes.
 
 Before building, `build.py` refuses to write into the version/platform output
 folder if it contains `vault.dat`, `vault.dat.bak`, or `vault.dat.*` files.
@@ -390,4 +424,5 @@ What is intentionally not produced by build.py
   - Notarized macOS packages
   - Authenticode-signed Windows packages
 
-Those can be added later without changing the vault format.
+Authenticode signing is a separate post-build step described above. Other
+package formats can be added later without changing the vault format.

@@ -19,7 +19,7 @@ HASH_ALGORITHMS = {
 
 @dataclass(slots=True)
 class OtpAuthUri:
-    type: str  # totp | hotp
+    type: str
     name: str
     issuer: str
     secret: str
@@ -31,7 +31,6 @@ class OtpAuthUri:
 
 def normalize_secret(secret: str) -> str:
     cleaned = re.sub(r"\s+", "", str(secret or "")).upper().replace("-", "").replace("=", "")
-    # Base32 alphabet only
     cleaned = re.sub(r"[^A-Z2-7]", "", cleaned)
     return cleaned
 
@@ -40,7 +39,6 @@ def decode_secret(secret: str) -> bytes:
     cleaned = normalize_secret(secret)
     if not cleaned:
         raise ValueError("Authenticator secret is empty.")
-    # Pad to a multiple of 8 for base32.
     padded = cleaned + ("=" * ((8 - len(cleaned) % 8) % 8))
     try:
         return base64.b32decode(padded, casefold=True)
@@ -114,7 +112,7 @@ def parse_otpauth_uri(uri: str) -> OtpAuthUri:
     if not secret:
         raise ValueError("otpauth URI is missing a secret.")
     secret = normalize_secret(secret)
-    decode_secret(secret)  # validate
+    decode_secret(secret)
 
     issuer = (query.get("issuer") or [issuer_from_label])[0].strip() or issuer_from_label
     algorithm = ((query.get("algorithm") or ["SHA1"])[0] or "SHA1").upper()
@@ -155,7 +153,6 @@ def parse_import_text(text: str) -> list[OtpAuthUri]:
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
-        # otpauth URI
         if line.lower().startswith("otpauth://"):
             try:
                 item = parse_otpauth_uri(line)
@@ -166,7 +163,6 @@ def parse_import_text(text: str) -> list[OtpAuthUri]:
                 seen.add(key)
                 results.append(item)
             continue
-        # name,secret or issuer:name,secret
         if "," in line:
             left, right = line.split(",", 1)
             left = left.strip()
@@ -187,7 +183,6 @@ def parse_import_text(text: str) -> list[OtpAuthUri]:
                 seen.add(key)
                 results.append(item)
             continue
-        # bare base32 secret
         secret = normalize_secret(line)
         if len(secret) < 8:
             continue

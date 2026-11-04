@@ -1,0 +1,75 @@
+PassMan v1.0.8 - Ubuntu 24.04 LTS Linux x64 Release
+===================================================
+
+Release status
+--------------
+
+The Linux x64 tarball, Debian package, CycloneDX SBOM, and checksum manifest
+have been built and locally verified. The packages and manifests have detached
+OpenPGP signatures. The artifacts are distributed at
+https://github.com/Scrince/PassMan/releases/tag/v1.0.8.
+
+
+Build details
+-------------
+
+Built in an Ubuntu 24.04 LTS linux/amd64 Docker container with Python 3.12.3,
+PyInstaller 6.22.3, PyQt6 / Qt 6.11.0, and cryptography 50.0.2. The standalone
+tarball contains a PyInstaller onedir application. The Debian package is a
+local installable package, not an APT repository release.
+
+Verification completed:
+
+  - All 28 unit tests passed in the Ubuntu x64 container.
+  - The standalone app launched with a temporary home and no vault was created.
+  - The Debian package installed with dpkg, reports version 1.0.8 and
+    architecture amd64, and launched with a temporary home.
+  - The tarball contains the PassMan executable and bundled runtime.
+  - Package and SBOM checksums and OpenPGP signatures verify.
+
+
+Release artifacts
+-----------------
+
+  release/v1.0.8/linux/PassMan-linux-x64.tar.gz
+  release/v1.0.8/linux/PassMan-linux-x64.tar.gz.asc
+  release/v1.0.8/linux/PassMan-linux-x64.deb
+  release/v1.0.8/linux/PassMan-linux-x64.deb.asc
+  release/v1.0.8/linux/SBOM.cdx.json
+  release/v1.0.8/linux/SBOM.cdx.json.asc
+  release/v1.0.8/linux/SHA256SUMS
+  release/v1.0.8/linux/SHA256SUMS.asc
+
+Package hashes:
+
+  491aa54f18875ed603cd917d45b5df72b59e2b6f1fa1df944bff3a7d10a497a6  PassMan-linux-x64.deb
+  86c3355b77f889258fcff1c00294b9d75f7ab5461bee92950d9b72794e5880c4  PassMan-linux-x64.tar.gz
+  3fc6612df60ddba2fa70656b21387f33200290dd25f480a328d423dce781f9c1  SBOM.cdx.json
+
+
+Verification
+------------
+
+From the repository root, import the release public key and verify the
+aggregate manifest:
+
+  gpg --import docs/PassMan_Release_Signing_2026_pubkey.asc
+  gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
+  shasum -a 256 -c docs/SHA256SUMS
+
+From release/v1.0.8/linux, verify the platform manifest and assets:
+
+  gpg --verify SHA256SUMS.asc SHA256SUMS
+  gpg --verify PassMan-linux-x64.tar.gz.asc PassMan-linux-x64.tar.gz
+  gpg --verify PassMan-linux-x64.deb.asc PassMan-linux-x64.deb
+  gpg --verify SBOM.cdx.json.asc SBOM.cdx.json
+  shasum -a 256 -c SHA256SUMS
+
+The release public key is docs/PassMan_Release_Signing_2026_pubkey.asc.
+Its primary fingerprint is 7858 E51C 98AD 2541 5098 9EF3 1F4D F0EB 1C80 C710.
+
+Install the Debian package with `sudo apt install ./PassMan-linux-x64.deb`,
+then run `passman`. Alternatively, unpack the standalone tarball and run
+`./PassMan/PassMan`. The frozen application stores its vault under
+`$XDG_DATA_HOME/PassMan/` or `~/.local/share/PassMan/` when XDG_DATA_HOME is
+unset.

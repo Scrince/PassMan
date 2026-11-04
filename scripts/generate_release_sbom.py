@@ -9,15 +9,15 @@ from importlib import metadata
 from pathlib import Path
 from urllib.parse import quote
 
+from packaging.markers import default_environment
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
+
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from packaging.markers import default_environment  # noqa: E402
-from packaging.requirements import Requirement  # noqa: E402
-from packaging.utils import canonicalize_name  # noqa: E402
-
-from src.version import APP_NAME, APP_VERSION  # noqa: E402
+from src.version import APP_NAME, APP_VERSION  # noqa: E402 - repository path setup above
 
 
 def _purl(name: str, version: str) -> str:

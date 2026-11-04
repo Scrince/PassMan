@@ -179,7 +179,6 @@ class Vault:
                 Vault(self.backup_path).unlock(self._password, migrate=False)
                 backup_source = self.backup_path
             except (VaultError, OSError):
-                # Keep the destination recoverable even when the old backup is bad.
                 backup_source = self.path
 
         created_main = False
@@ -281,7 +280,6 @@ class Vault:
             raise InvalidPasswordError("Incorrect password or corrupted vault.")
         if not new_password:
             raise VaultError("Password cannot be empty.")
-        # Keep live model; only re-encrypt with the new master password.
         self._write_encrypted(self.model, new_password)
         self._password = new_password
 

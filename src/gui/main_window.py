@@ -6,6 +6,7 @@ import secrets
 import shutil
 import string
 import sys
+from copy import deepcopy
 from collections.abc import Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -49,6 +50,13 @@ from gui.settings_window import SettingsWindow
 from gui.widgets.entry_card import EntryCard
 from models.entry import Entry
 from utils.clipboard import ClipboardManager
+from utils.apple_passwords_import import (
+    ApplePasswordsImportError,
+    import_apple_authenticators_csv,
+    import_apple_passwords_csv,
+    merge_apple_authenticator_entries,
+    merge_apple_password_entries,
+)
 from utils.file_paths import VAULT_FILENAME, asset_path
 from utils.themes import DEFAULT_THEME_NAME, theme_stylesheet
 from version import APP_DISPLAY_NAME, APP_NAME
@@ -443,7 +451,6 @@ class MainWindow(ResizableMainWindow):
         subtitle.setObjectName("Muted")
         side_layout.addWidget(subtitle)
 
-        # Mode tabs: password vault vs project GPG key storage (separate UIs).
         self.mode_group = QButtonGroup(self)
         self.mode_group.setExclusive(True)
         self.vault_mode_button = QPushButton("Vault")
@@ -484,6 +491,10 @@ class MainWindow(ResizableMainWindow):
         generator.setObjectName("SidebarButton")
         generator.clicked.connect(self.open_password_generator)
         side_layout.addWidget(generator)
+        import_passwords = QPushButton("Import")
+        import_passwords.setObjectName("SidebarButton")
+        import_passwords.clicked.connect(self.import_apple_passwords)
+        side_layout.addWidget(import_passwords)
         backup = QPushButton("Backup")
         backup.setObjectName("SidebarButton")
         backup.clicked.connect(self.open_backup_manager)
@@ -521,7 +532,6 @@ class MainWindow(ResizableMainWindow):
         self.content_stack = QStackedWidget()
         shell.addWidget(self.content_stack, 1)
 
-        # --- Password vault page (existing entry list) ---
         vault_page = QWidget()
         vault_layout = QVBoxLayout(vault_page)
         vault_layout.setContentsMargins(22, 18, 22, 18)
@@ -569,7 +579,6 @@ class MainWindow(ResizableMainWindow):
         self._search_timer.setInterval(120)
         self._search_timer.timeout.connect(self.refresh_entries)
 
-        # --- Project keys page (independent of password entries) ---
         keys_page = QWidget()
         keys_page_layout = QVBoxLayout(keys_page)
         keys_page_layout.setContentsMargins(22, 18, 22, 18)
@@ -578,7 +587,6 @@ class MainWindow(ResizableMainWindow):
         keys_page_layout.addWidget(self.keys_panel)
         self.content_stack.addWidget(keys_page)
 
-        # --- Authenticator page (TOTP/HOTP) ---
         auth_page = QWidget()
         auth_page_layout = QVBoxLayout(auth_page)
         auth_page_layout.setContentsMargins(22, 18, 22, 18)
@@ -587,7 +595,6 @@ class MainWindow(ResizableMainWindow):
         auth_page_layout.addWidget(self.auth_panel)
         self.content_stack.addWidget(auth_page)
 
-        # --- Recovery page (backup codes / recovery keys) ---
         recovery_page = QWidget()
         recovery_page_layout = QVBoxLayout(recovery_page)
         recovery_page_layout.setContentsMargins(22, 18, 22, 18)
@@ -598,7 +605,6 @@ class MainWindow(ResizableMainWindow):
         recovery_page_layout.addWidget(self.recovery_panel)
         self.content_stack.addWidget(recovery_page)
 
-        # --- Seed page (wallet seed phrases) ---
         seed_page = QWidget()
         seed_page_layout = QVBoxLayout(seed_page)
         seed_page_layout.setContentsMargins(22, 18, 22, 18)
@@ -709,6 +715,89 @@ class MainWindow(ResizableMainWindow):
             self._visible_entry_ids = ()
             self.refresh_entries()
 
+    def import_apple_passwords(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Import Apple Passwords CSV",
+            "",
+            "CSV files (*.csv);;All files (*)",
+        )
+        if not path:
+            return
+        try:
+            imported = import_apple_passwords_csv(path)
+            imported_authenticators = import_apple_authenticators_csv(path)
+        except ApplePasswordsImportError as exc:
+            QMessageBox.warning(self, "Apple Passwords import failed", str(exc))
+            return
+        existing = self.vault.model.entries
+        added_preview, updated_preview, unchanged_preview, deleted_preview = merge_apple_password_entries(
+            deepcopy(existing), imported
+        )
+        auth_counts_preview = (0, 0, 0, 0)
+        if imported_authenticators is not None:
+            auth_counts_preview = merge_apple_authenticator_entries(
+                deepcopy(self.vault.model.authenticator_entries), imported_authenticators
+            )
+        answer = QMessageBox.question(
+            self,
+            "Import Apple Passwords",
+            f"Add {added_preview}, update {updated_preview}, leave {unchanged_preview} unchanged, "
+            f"and delete {deleted_preview} previously imported entr{'y' if deleted_preview == 1 else 'ies'} "
+            "that are missing from this CSV?\n\n"
+            + (
+                f"Authenticator codes: add {auth_counts_preview[0]}, update {auth_counts_preview[1]}, "
+                f"leave {auth_counts_preview[2]} unchanged, delete {auth_counts_preview[3]}.\n\n"
+                if imported_authenticators is not None else ""
+            )
+            + "Only entries and authenticator codes previously imported from Apple are managed; "
+            "manually created records are not affected.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        original_entries = list(existing)
+        original_values = {
+            entry.id: (
+                entry.name, entry.type, dict(entry.fields), entry.notes,
+                entry.modified_at, entry.import_source,
+            )
+            for entry in existing
+        }
+        original_authenticators = deepcopy(self.vault.model.authenticator_entries)
+        added, updated, unchanged, deleted = merge_apple_password_entries(existing, imported)
+        auth_counts = (0, 0, 0, 0)
+        if imported_authenticators is not None:
+            auth_counts = merge_apple_authenticator_entries(
+                self.vault.model.authenticator_entries, imported_authenticators
+            )
+        if not self._persist_vault():
+            self.vault.model.entries = original_entries
+            self.vault.model.authenticator_entries = original_authenticators
+            for entry in original_entries:
+                (
+                    entry.name, entry.type, entry.fields, entry.notes,
+                    entry.modified_at, entry.import_source,
+                ) = original_values[entry.id]
+            return
+        self._entry_cards.clear()
+        self._visible_entry_ids = ()
+        self.refresh_entries()
+        if imported_authenticators is not None:
+            self.auth_panel.refresh()
+        QMessageBox.information(
+            self,
+            "Import complete",
+            f"Added {added}, updated {updated}, left {unchanged} unchanged, and deleted {deleted} "
+            f"previously imported entr{'y' if deleted == 1 else 'ies'}.\n\n"
+            + (
+                f"Authenticator codes: added {auth_counts[0]}, updated {auth_counts[1]}, "
+                f"unchanged {auth_counts[2]}, deleted {auth_counts[3]}."
+                if imported_authenticators is not None else ""
+            ),
+        )
+
     def edit_entry(self, entry_id: str) -> None:
         entry = self._entry_by_id(entry_id)
         if not entry:
@@ -777,8 +866,7 @@ class MainWindow(ResizableMainWindow):
         self.clipboard.copy(text, self.clipboard_clear_seconds)
         self.statusBar().showMessage("Copied to clipboard", 2500)
 
-    def closeEvent(self, event) -> None:  # type: ignore[override]
-        # Flush PassMan-copied secrets so they do not survive lock/close.
+    def closeEvent(self, event) -> None:
         self.clipboard.flush()
         self.auto_lock_timer.stop()
         super().closeEvent(event)
@@ -940,7 +1028,6 @@ class MainWindow(ResizableMainWindow):
         ]
         self.vault.model.entries.extend(samples)
         if not self._persist_vault():
-            # Drop the samples we just appended on failure.
             sample_ids = {item.id for item in samples}
             self.vault.model.entries = [
                 item for item in self.vault.model.entries if item.id not in sample_ids

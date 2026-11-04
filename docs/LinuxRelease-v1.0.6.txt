@@ -1,0 +1,70 @@
+PassMan v1.0.6 - Ubuntu 24.04 LTS Linux x64 Release
+====================================================
+
+Build details
+-------------
+
+Built in an Ubuntu 24.04 LTS Docker container for x86-64 / Debian amd64 with
+Python 3.12.3, PyInstaller 6.22.3, PyQt6 / Qt 6.11.0, and cryptography
+50.0.2. The standalone package is a PyInstaller onedir bundle. The Debian
+package is a local installable package, not an APT repository release.
+
+This release targets Ubuntu 24.04 LTS. The GUI requires the Linux desktop
+libraries listed in `docs/Build.txt`. No vault data is included in either
+package.
+
+Release artifacts
+-----------------
+
+  release/v1.0.6/linux/PassMan-linux-x64.tar.gz
+  release/v1.0.6/linux/PassMan-linux-x64.tar.gz.asc
+  release/v1.0.6/linux/PassMan-linux-x64.deb
+  release/v1.0.6/linux/PassMan-linux-x64.deb.asc
+  release/v1.0.6/linux/SBOM.cdx.json
+  release/v1.0.6/linux/SBOM.cdx.json.asc
+  release/v1.0.6/linux/SHA256SUMS
+  release/v1.0.6/linux/SHA256SUMS.asc
+
+SHA-256 verification
+--------------------
+
+From the release directory:
+
+  cd release/v1.0.6/linux
+  shasum -a 256 -c SHA256SUMS
+
+The package checksums are:
+
+  be489b536664c27a0913243e146737aa0356221d7f3c6ee8cf282f2cb193f69e  PassMan-linux-x64.tar.gz
+  9ef1e68ab1f8729030eae180b0024a6dd23ccf94a48c73ccb7c59740de7297bc  PassMan-linux-x64.deb
+  77621c47f17752f3ae4f1ad6f2bf934cbdf8823b70535591c54709e1d2ef3855  SBOM.cdx.json
+
+OpenPGP verification
+--------------------
+
+Release key identity: PassMan Release Signing (2026) <release@passman.local>
+Primary fingerprint: 7858 E51C 98AD 2541 5098 9EF3 1F4D F0EB 1C80 C710
+
+From the repository root, import `docs/PassMan_Release_Signing_2026_pubkey.asc`
+and verify the aggregate manifest:
+
+  gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
+  shasum -a 256 -c docs/SHA256SUMS
+
+From the release directory, verify the platform manifest and packages:
+
+  cd release/v1.0.6/linux
+  gpg --verify SHA256SUMS.asc SHA256SUMS
+  gpg --verify PassMan-linux-x64.tar.gz.asc PassMan-linux-x64.tar.gz
+  gpg --verify PassMan-linux-x64.deb.asc PassMan-linux-x64.deb
+  gpg --verify SBOM.cdx.json.asc SBOM.cdx.json
+
+Install the Debian package with:
+
+  sudo apt install ./PassMan-linux-x64.deb
+  passman
+
+Or unpack the standalone tarball and run `./PassMan/PassMan` from the
+extracted directory. The frozen app stores its vault under
+`$XDG_DATA_HOME/PassMan/` or `~/.local/share/PassMan/` when
+`XDG_DATA_HOME` is unset.

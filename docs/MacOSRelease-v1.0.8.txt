@@ -1,0 +1,87 @@
+PassMan v1.0.8 - macOS Release
+==============================
+
+Release status
+--------------
+
+The arm64, x86_64, and universal2 DMGs have been built and locally verified.
+This rebuild includes the Apple Passwords import fixes for password whitespace,
+blank passwords, URL path changes, and malformed CSV data.
+The CycloneDX SBOM and per-platform SHA256SUMS manifest are signed. All three
+DMGs, the SBOM, the per-platform manifest, and the aggregate docs/SHA256SUMS
+manifest pass OpenPGP signature verification. The artifacts are distributed at
+https://github.com/Scrince/PassMan/releases/tag/v1.0.8.
+
+
+Build details
+-------------
+
+Built on macOS 15.7.7 (Apple Silicon) with Python 3.14.0, PyInstaller 6.22.3,
+and PyQt6 / Qt 6.11.0. The x86_64 cryptography 50.0.2 extension was built from
+source against statically linked OpenSSL 3.6.5. Its official source archive
+SHA-256 was checked before building. The universal2 app combines the native
+arm64 and x86_64 bundles; 80 Mach-O files were merged. All three DMGs contain
+ad-hoc code-signed applications and are not Developer ID signed or notarized,
+so Gatekeeper may show a warning when opening a downloaded app.
+
+Verification completed:
+
+  - All 28 unit tests passed in both arm64 and x86_64 Python 3.14 environments.
+  - Each DMG passed hdiutil verification and its embedded app passed strict
+    codesign verification.
+  - App and cryptography-extension architecture slices match each DMG label.
+  - Each app launched from its DMG with a temporary home directory and did not
+    create a vault during the smoke check.
+  - The per-platform SHA256SUMS manifest verifies all listed files.
+
+
+Release artifacts
+-----------------
+
+  release/v1.0.8/macos/PassMan-macOS-arm64.dmg
+  release/v1.0.8/macos/PassMan-macOS-x64.dmg
+  release/v1.0.8/macos/PassMan-macOS-universal.dmg
+  release/v1.0.8/macos/PassMan-macOS-arm64.dmg.asc
+  release/v1.0.8/macos/PassMan-macOS-x64.dmg.asc
+  release/v1.0.8/macos/PassMan-macOS-universal.dmg.asc
+  release/v1.0.8/macos/SBOM.cdx.json
+  release/v1.0.8/macos/SBOM.cdx.json.asc
+  release/v1.0.8/macos/SHA256SUMS
+  release/v1.0.8/macos/SHA256SUMS.asc
+
+The SBOM includes OpenSSL 3.6.5 as a static x86_64 dependency of
+cryptography 50.0.2.
+
+SHA-256 verification (from release/v1.0.8/macos):
+
+  shasum -a 256 -c SHA256SUMS
+
+Package hashes:
+
+  2465ef68b33925a44644e70903f45a89e4e84851fc5513d0f61dcea64814d3b1  PassMan-macOS-arm64.dmg
+  d85d506477fe29a25411ce9cc831e06d89ec268e1583253eccc522acd9b6f73e  PassMan-macOS-x64.dmg
+  daa18f84bb5bb472f28131b4765a714c7ea52e4d617a9ce5efbbdfe6bf1fafb5  PassMan-macOS-universal.dmg
+  42c01140ed2433cb41be0bf00ea945a0ebcfb9028be2c3b1aaaac966a041fd1e  SBOM.cdx.json
+
+
+OpenPGP verification
+-------------------
+
+From the repository root, verify the aggregate manifest and its signature:
+
+  gpg --import docs/PassMan_Release_Signing_2026_pubkey.asc
+  gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
+  shasum -a 256 -c docs/SHA256SUMS
+
+From release/v1.0.8/macos, verify the platform signatures and manifest:
+
+  gpg --verify SHA256SUMS.asc SHA256SUMS
+  gpg --verify PassMan-macOS-arm64.dmg.asc PassMan-macOS-arm64.dmg
+  gpg --verify PassMan-macOS-x64.dmg.asc PassMan-macOS-x64.dmg
+  gpg --verify PassMan-macOS-universal.dmg.asc PassMan-macOS-universal.dmg
+  gpg --verify SBOM.cdx.json.asc SBOM.cdx.json
+  shasum -a 256 -c SHA256SUMS
+
+The public key is docs/PassMan_Release_Signing_2026_pubkey.asc. OpenPGP
+signatures establish artifact integrity and origin for the release key holder;
+they do not replace Apple Developer ID signing or notarization.

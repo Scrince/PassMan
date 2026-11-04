@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101714">
+  <meta name="description" content="PassMan is an offline-first desktop password manager with an encrypted local vault.">
+  <title>PassMan — Offline-first password manager</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #101714;
+      color: #f2f5ef;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(ellipse at 78% 8%, #254039 0, transparent 38%), #101714;
+    }
+    a { color: inherit; }
+    .wrap { width: min(1060px, calc(100% - 40px)); margin: 0 auto; }
+    header { padding: 28px 0; }
+    .brand { display: inline-flex; gap: 12px; align-items: center; text-decoration: none; font-weight: 700; letter-spacing: .02em; }
+    .mark { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid #72d9a0; border-radius: 12px; color: #9aefbb; font-size: 19px; }
+    main { padding: clamp(54px, 10vw, 112px) 0 76px; }
+    .eyebrow { color: #91d8ad; text-transform: uppercase; font-size: 12px; font-weight: 700; letter-spacing: .16em; }
+    h1 { max-width: 760px; margin: 18px 0; font-size: clamp(42px, 8vw, 76px); line-height: 1.02; letter-spacing: -.055em; }
+    .lead { max-width: 650px; color: #b8c6bc; font-size: clamp(18px, 2.5vw, 21px); line-height: 1.65; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+    .button { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; padding: 0 19px; border-radius: 10px; font-weight: 700; text-decoration: none; }
+    .primary { color: #102118; background: #91e7ae; }
+    .secondary { border: 1px solid #42564b; background: #17221c; }
+    .note { margin-top: 17px; color: #90a398; font-size: 13px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 76px; }
+    .card { padding: 23px; border: 1px solid #2d4035; border-radius: 14px; background: #17211b; }
+    .card h2 { margin: 0 0 10px; font-size: 17px; }
+    .card p { margin: 0; color: #aab9ae; font-size: 14px; line-height: 1.65; }
+    .security { margin-top: 54px; padding: 26px 28px; border-left: 2px solid #81d69c; background: #151f19; }
+    .security h2 { margin: 0 0 9px; font-size: 17px; }
+    .security p { max-width: 790px; margin: 0; color: #b3c0b6; line-height: 1.7; }
+    footer { padding: 25px 0 34px; border-top: 1px solid #27372e; color: #92a398; font-size: 13px; }
+    footer nav { display: flex; flex-wrap: wrap; gap: 20px; }
+    footer a { text-decoration-color: #607368; text-underline-offset: 3px; }
+    @media (max-width: 700px) { .grid { grid-template-columns: 1fr; margin-top: 55px; } }
+  </style>
+</head>
+<body>
+  <header class="wrap">
+    <a class="brand" href="https://github.com/Scrince/PassMan" aria-label="PassMan on GitHub">
+      <span class="mark" aria-hidden="true">P</span><span>PassMan</span>
+    </a>
+  </header>
+  <main class="wrap">
+    <div class="eyebrow">Your vault stays yours</div>
+    <h1>Password management, kept local.</h1>
+    <p class="lead">PassMan is an offline-first desktop password manager. Your vault is encrypted on your device and protected by your master password.</p>
+    <div class="actions">
+      <a class="button primary" href="https://github.com/Scrince/PassMan/releases/latest">Download the latest release</a>
+      <a class="button secondary" href="https://github.com/Scrince/PassMan">View source on GitHub</a>
+    </div>
+    <p class="note">Available for Windows, macOS, and Linux. Check release notes and verify signatures before installing.</p>
+
+    <section class="grid" aria-label="PassMan features">
+      <article class="card">
+        <h2>Encrypted local vault</h2>
+        <p>AES-256-GCM encryption and Argon2id key derivation protect vault data stored on your computer.</p>
+      </article>
+      <article class="card">
+        <h2>More than passwords</h2>
+        <p>Keep authenticator entries, recovery information, seed phrases, and project keys in one desktop app.</p>
+      </article>
+      <article class="card">
+        <h2>Open source releases</h2>
+        <p>Review the source, read the security notes, and download signed builds from the project’s GitHub releases.</p>
+      </article>
+    </section>
+
+    <aside class="security">
+      <h2>Designed to stay offline-first</h2>
+      <p>This website only provides project information and links to downloads. PassMan is a native desktop application; the website does not access or store your passwords or vault.</p>
+    </aside>
+  </main>
+  <footer>
+    <nav class="wrap" aria-label="Project links">
+      <a href="https://github.com/Scrince/PassMan/releases">Releases</a>
+      <a href="https://github.com/Scrince/PassMan/blob/main/README.md">Documentation</a>
+      <a href="https://github.com/Scrince/PassMan/blob/main/docs/OpSec.txt">Security model</a>
+      <a href="https://github.com/Scrince/PassMan/issues">Report an issue</a>
+      <a href="https://github.com/Scrince/PassMan/blob/main/LICENSE">MIT License</a>
+    </nav>
+  </footer>
+</body>
+</html>

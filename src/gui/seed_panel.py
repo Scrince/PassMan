@@ -41,7 +41,6 @@ from models.seed import ALLOWED_WORD_COUNTS, SeedEntry, normalize_seed_phrase, s
 
 GRID_COLUMNS = 3
 
-# Dialog sizes grow for 24-word seeds so the numbered grid is not cramped.
 EDITOR_SIZE_12 = (720, 660)
 EDITOR_SIZE_24 = (820, 960)
 EDITOR_MIN_12 = (640, 560)
@@ -169,7 +168,6 @@ class SeedWordGrid(QWidget):
             count = 12
         self._word_count = count
 
-        # Extra room between rows when showing a full 24-word grid.
         if count >= 24:
             self._grid.setHorizontalSpacing(16)
             self._grid.setVerticalSpacing(12)
@@ -219,11 +217,9 @@ class SeedWordGrid(QWidget):
             self._fields.append(field)
             self._index_labels.append(number)
 
-        # Keep columns equal width so boxes stay evenly spaced.
         for col in range(GRID_COLUMNS):
             self._grid.setColumnStretch(col, 1)
 
-        # Preferred height scales with row count so dialogs can size to fit.
         rows = max(1, (count + GRID_COLUMNS - 1) // GRID_COLUMNS)
         row_pitch = FIELD_MIN_HEIGHT + (14 if count >= 24 else 12)
         self.setMinimumHeight(rows * row_pitch)
@@ -266,10 +262,8 @@ class SeedWordGrid(QWidget):
 
     def _normalize_field(self, field: QLineEdit) -> None:
         text = field.text().strip()
-        # If the user pastes multiple words into one box, distribute across the grid.
         parts = seed_word_list(text)
         if len(parts) > 1:
-            # Full 12/24-word paste replaces the entire grid so no stale slots remain.
             if len(parts) in ALLOWED_WORD_COUNTS:
                 if len(parts) != len(self._fields):
                     field.clear()
@@ -307,7 +301,6 @@ class SeedWordGrid(QWidget):
                 self._fields[target].setText(word)
                 self._fields[target].blockSignals(False)
                 last_written = target
-            # Clear any following slots so previous words cannot leak into the phrase.
             for target in range(last_written + 1, len(self._fields)):
                 self._fields[target].blockSignals(True)
                 self._fields[target].setText("")
@@ -440,10 +433,8 @@ class SeedEditorDialog(ResizableDialog):
         """Grow (or shrink) the dialog so 24-word grids are not bunched."""
         target, minimum = _dialog_sizes(word_count, editor=True)
         self.setMinimumSize(*minimum)
-        # Always expand up to the target for more words; never shrink below current if larger.
         width = max(self.width() if self.isVisible() else 0, target[0])
         height = max(self.height() if self.isVisible() else 0, target[1])
-        # When switching back to 12 words, allow a comfortable default rather than staying huge.
         if int(word_count) < 24:
             width, height = target
         else:
@@ -620,7 +611,6 @@ class SeedCard(QFrame):
         root.addLayout(actions)
 
         view_btn.clicked.connect(lambda: self.view_requested.emit(entry.id))
-        # Always copy the full normalized space-separated seed phrase.
         copy_seed.clicked.connect(
             lambda: self.copy_seed_requested.emit(normalize_seed_phrase(entry.seed_phrase))
         )

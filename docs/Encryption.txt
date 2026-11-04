@@ -196,7 +196,8 @@ The logical plaintext object is:
         },
         "notes": "<entry notes>",
         "created_at": "<ISO-8601 UTC timestamp>",
-        "modified_at": "<ISO-8601 UTC timestamp>"
+        "modified_at": "<ISO-8601 UTC timestamp>",
+        "import_source": "apple_passwords (optional)"
       }
     ],
     "key_projects": [
@@ -247,7 +248,8 @@ Also included in the plaintext vault model:
       "counter": 0,
       "notes": "<notes>",
       "created_at": "<ISO-8601 UTC timestamp>",
-      "modified_at": "<ISO-8601 UTC timestamp>"
+      "modified_at": "<ISO-8601 UTC timestamp>",
+      "import_source": "apple_passwords (optional)"
     }
   ]
 
@@ -298,6 +300,7 @@ encrypted plaintext bytes is lexicographic:
   created_at
   fields
   id
+  import_source (when present)
   modified_at
   name
   notes
@@ -317,6 +320,12 @@ sort the stored list unless code explicitly modifies the model list.
 Field dictionaries are serialized with lexicographic key order. The GUI
 normally stores field values as strings, but JSON-compatible values can be read
 from existing vaults because Entry.from_dict copies fields with dict(...).
+The optional entry import_source marker identifies entries managed by an
+import workflow. Older entries without this member load with an empty marker
+and are not managed or deleted by Apple Passwords imports.
+Authenticator records have the same optional import_source marker so Apple
+Password imports can manage their OTPAuth credentials without touching codes
+entered manually in Authenticator mode.
 
 
 Timestamps

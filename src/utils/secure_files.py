@@ -13,7 +13,6 @@ def _restrict_permissions(path: Path) -> None:
             raise OSError("Could not determine the current Windows account for file permissions.")
         domain = os.environ.get("USERDOMAIN")
         account = f"{domain}\\{username}" if domain else username
-        # Set the ACL before writing any private key bytes to disk.
         subprocess.run(
             [
                 "icacls",
@@ -21,8 +20,8 @@ def _restrict_permissions(path: Path) -> None:
                 "/inheritance:r",
                 "/grant:r",
                 f"{account}:(F)",
-                "*S-1-5-18:(F)",  # Local System
-                "*S-1-5-32-544:(F)",  # Local Administrators
+                "*S-1-5-18:(F)",
+                "*S-1-5-32-544:(F)",
             ],
             check=True,
             capture_output=True,

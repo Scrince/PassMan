@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # noqa: E402
 
+# These imports require the source path setup above.
 from crypto import vault as vault_module  # noqa: E402
 from crypto.encryption import ALGORITHM, new_nonce  # noqa: E402
 from crypto.key_derivation import derive_key  # noqa: E402

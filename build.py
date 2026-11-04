@@ -3,13 +3,13 @@
 
 Run this on the target OS (native build only — no cross-compile from Windows):
 
-  python build.py                 # auto-detect host platform
+  python build.py
   python build.py --platform linux
   python build.py --platform macos --arch arm64
   python build.py --platform macos --arch x86_64
   python build.py --platform macos --arch universal2
   python build.py --platform windows
-  python build.py --skip-package  # PyInstaller only (no tar/deb/dmg)
+  python build.py --skip-package
 
 See docs/Build.txt for prerequisites and release signing steps.
 """
@@ -42,7 +42,6 @@ DIST_DIR = ROOT / "dist"
 BUILD_DIR = ROOT / "build"
 SPEC_FILE = ROOT / "PassMan.spec"
 
-# PyInstaller --add-data separator: ";" on Windows, ":" on Unix.
 ADD_DATA_SEP = ";" if os.name == "nt" else ":"
 
 
@@ -158,9 +157,6 @@ def pyinstaller_cli(name: str, extra: list[str] | None = None) -> list[str]:
     return command
 
 
-# ---------------------------------------------------------------------------
-# Windows
-# ---------------------------------------------------------------------------
 
 
 def build_windows(*, package: bool = True) -> int:
@@ -236,9 +232,6 @@ def build_windows(*, package: bool = True) -> int:
     return 0
 
 
-# ---------------------------------------------------------------------------
-# Linux
-# ---------------------------------------------------------------------------
 
 
 def _linux_desktop_entry(exec_name: str = "passman") -> str:
@@ -335,14 +328,12 @@ def _create_deb(app_dir: Path, deb_path: Path, arch: str = "amd64") -> None:
         data_tar = tmp_path / "data.tar.xz"
         control_tar = tmp_path / "control.tar.xz"
 
-        with tarfile.open(data_tar, "w:xz") as tar:
-            # recursive=False: rglob already walks the tree; recursive add would
-            # re-embed every directory's children and bloat the .deb massively.
+        with tarfile.open(data_tar, "w:xz", format=tarfile.GNU_FORMAT) as tar:
             for path in sorted(rootfs.rglob("*")):
                 arcname = path.relative_to(rootfs).as_posix()
                 tar.add(path, arcname=arcname, recursive=False)
 
-        with tarfile.open(control_tar, "w:xz") as tar:
+        with tarfile.open(control_tar, "w:xz", format=tarfile.GNU_FORMAT) as tar:
             tar.add(control_path, arcname="control", recursive=False)
 
         deb_path.parent.mkdir(parents=True, exist_ok=True)
@@ -403,7 +394,7 @@ def build_linux(*, package: bool = True) -> int:
     deb_arch = "amd64" if arch == "x64" else "arm64"
     try:
         _create_deb(app_dir, dist_deb, arch=deb_arch)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return die(f"Failed to create .deb package: {exc}")
 
     out = release_dir("linux")
@@ -420,9 +411,6 @@ def build_linux(*, package: bool = True) -> int:
     return 0
 
 
-# ---------------------------------------------------------------------------
-# macOS
-# ---------------------------------------------------------------------------
 
 
 def _resolve_macos_arch(arch: str) -> str:
@@ -538,7 +526,6 @@ def build_macos(*, arch: str = "native", package: bool = True) -> int:
     app_bundle = work_dist / f"{APP_NAME}.app"
     onedir = work_dist / APP_NAME
     if not app_bundle.exists():
-        # Older layouts sometimes place the bundle one level higher.
         alt = DIST_DIR / f"{APP_NAME}.app"
         if alt.exists():
             app_bundle = alt
@@ -562,8 +549,6 @@ def build_macos(*, arch: str = "native", package: bool = True) -> int:
     if codesign is None:
         return die("codesign not found; cannot sign the macOS app bundle.")
 
-    # Sign from the local temporary volume. Some external development volumes
-    # expose resource forks as AppleDouble files and reject codesign updates.
     with tempfile.TemporaryDirectory(prefix="passman-macos-") as tmp:
         signed_app = Path(tmp) / app_bundle.name
 
@@ -597,9 +582,6 @@ def build_macos(*, arch: str = "native", package: bool = True) -> int:
     return 0
 
 
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

@@ -36,7 +36,7 @@ from utils.secure_files import write_private_file
 class NoWheelComboBox(QComboBox):
     """Combo box that ignores mouse-wheel selection changes; open the dropdown to pick."""
 
-    def wheelEvent(self, event: QWheelEvent) -> None:  # type: ignore[override]
+    def wheelEvent(self, event: QWheelEvent) -> None:
         event.ignore()
 
 
@@ -174,12 +174,10 @@ class KeyEditorRow(QFrame):
             self.fingerprint_edit.setText(identity.fingerprint)
         if identity.key_id:
             self.key_id_edit.setText(identity.key_id)
-        # Only auto-set role when the imported material clearly indicates one.
         if identity.role in GPG_ROLE_CODES:
             index = self.role_combo.findData(identity.role)
             if index >= 0:
                 self.role_combo.setCurrentIndex(index)
-        # Fill empty label from UID when available.
         if identity.label and not self.label_edit.text().strip():
             self.label_edit.setText(identity.label)
 

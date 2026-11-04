@@ -18,7 +18,7 @@ class AuthenticatorEntry:
     name: str
     secret: str
     issuer: str = ""
-    type: str = "totp"  # totp | hotp
+    type: str = "totp"
     algorithm: str = "SHA1"
     digits: int = 6
     period: int = 30
@@ -27,6 +27,7 @@ class AuthenticatorEntry:
     id: str = field(default_factory=lambda: uuid4().hex)
     created_at: str = field(default_factory=utc_now_iso)
     modified_at: str = field(default_factory=utc_now_iso)
+    import_source: str = ""
 
     def __post_init__(self) -> None:
         self.type = "hotp" if str(self.type).lower() == "hotp" else "totp"
@@ -47,7 +48,7 @@ class AuthenticatorEntry:
             self.counter = 0
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data = {
             "id": self.id,
             "name": self.name,
             "issuer": self.issuer,
@@ -61,6 +62,9 @@ class AuthenticatorEntry:
             "created_at": self.created_at,
             "modified_at": self.modified_at,
         }
+        if self.import_source:
+            data["import_source"] = self.import_source
+        return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "AuthenticatorEntry":
@@ -79,6 +83,7 @@ class AuthenticatorEntry:
             notes=str(data.get("notes") or ""),
             created_at=created_at,
             modified_at=str(data.get("modified_at") or created_at),
+            import_source=str(data.get("import_source") or ""),
         )
 
     def mark_modified(self) -> None:

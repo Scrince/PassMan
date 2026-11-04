@@ -2,7 +2,7 @@
 
 PassMan is a local desktop password manager built with Python and PyQt6. It stores entries in an encrypted `vault.dat` file, protected by a master password and designed to stay offline-first.
 
-Current application version: `1.0.7`
+Current application version: `1.0.8`
 
 The application version is controlled from `src/version.py`.
 
@@ -14,12 +14,13 @@ Release history is tracked in `CHANGELOG.md`.
 - Authenticated vault metadata with transparent migration from the previous vault format
 - Argon2id key derivation for the master password
 - Website, wallet, drive, and custom entry types
+- Import password entries from Apple Passwords CSV exports
 - Custom fields per entry
 - Private notes per entry
 - Search by entry name, type, field name, field value, notes, or timestamps
 - Sort by name, created date, or modified date
 - Project Keys mode for C/S/E/A GPG `.key` files plus a project public `.asc` half
-- Authenticator mode for TOTP/HOTP codes with `otpauth://` import
+- Authenticator mode for TOTP/HOTP codes with `otpauth://` import, including Apple Passwords CSV OTPAuth entries
 - Seed mode with YellowSphere ARC V3 `.arc` import and password-protected export (password, keyfile, combined, and unprotected imports)
 - Password generator with configurable length and character sets
 - Clipboard copy with automatic clear timer
@@ -28,6 +29,23 @@ Release history is tracked in `CHANGELOG.md`.
 - Encrypted backup and restore workflow
 - Move the active vault and its backup to another folder from Settings
 - Release signatures and checksums for packaged builds
+
+Apple Passwords import reads the CSV export produced by the Passwords app and
+maps titles, website URLs, usernames, passwords, and notes into PassMan entries.
+Valid `OTPAuth` values are saved separately in Authenticator mode. Later imports
+update matching Apple-managed entries and remove previously imported entries
+that are absent from the corresponding CSV data; manually created records are
+not affected.
+Password values retain their exact leading and trailing spaces. An empty
+Password cell in a complete CSV row clears a previously imported password.
+For a unique website and username, changing only the URL path keeps the
+existing PassMan entry and its custom fields. Malformed URLs and incomplete
+CSV rows stop the import before the vault changes.
+Apple's export is unencrypted; import it locally and remove the exported file
+afterward. See [docs/ApplePasswordsImport.md](docs/ApplePasswordsImport.md) for
+a detailed export and import walkthrough, matching rules, authenticator
+handling, and CSV cleanup instructions. Entries created with **Add Entry**
+remain until you delete them manually.
 
 Seed exports use the YellowSphere ARC V3 password-protected format. The `.arc` file contains only the mnemonic; PassMan wallet passphrases, labels, and notes are not included.
 
@@ -151,7 +169,17 @@ installers and verification assets are attached to the
 
 ## Release Artifacts
 
-The v1.0.7 release set is available from the GitHub Releases page:
+The v1.0.8 Windows x64 executable and installer, macOS arm64, Intel, and
+universal DMGs, and Ubuntu 24.04 Linux x64 tarball and Debian package are
+available from the [v1.0.8 GitHub release](https://github.com/Scrince/PassMan/releases/tag/v1.0.8)
+with SBOMs, OpenPGP signatures, and checksum manifests. The Windows executable
+and installer also carry local self-signed Authenticode signatures. See
+[docs/WindowsRelease.txt](docs/WindowsRelease.txt),
+[docs/MacOSRelease-v1.0.8.txt](docs/MacOSRelease-v1.0.8.txt) and
+[docs/LinuxRelease-v1.0.8.txt](docs/LinuxRelease-v1.0.8.txt) for local artifact
+paths and verification steps.
+
+The v1.0.8 release set includes:
 
 ```text
 Windows: x64 executable, installer, SBOM, signatures, and checksums
@@ -165,8 +193,8 @@ all assets have unique names. The aggregate `docs/SHA256SUMS` and its detached
 signature are kept in the source tree. SBOMs list build dependencies and
 contain no vault contents or user data.
 
-See `docs/WindowsRelease.txt`, `docs/MacOSRelease-v1.0.7.txt`, and
-`docs/LinuxRelease-v1.0.7.txt` for artifact details and verification commands.
+See `docs/WindowsRelease.txt`, `docs/MacOSRelease-v1.0.8.txt`, and
+`docs/LinuxRelease-v1.0.8.txt` for current artifact details and verification commands.
 The macOS applications are ad-hoc signed and are not notarized; Gatekeeper may
 warn when opening downloaded builds.
 
@@ -189,8 +217,9 @@ Import the public key:
 gpg --import docs/PassMan_Release_Signing_2026_pubkey.asc
 ```
 
-To verify the aggregate manifest, download the release packages and SBOMs into
-their original `release/v1.0.7/<platform>/` paths first. For individual
+The aggregate manifest retains historical releases. To verify every line,
+place all listed packages and SBOMs in their original `release/v<version>/<platform>/`
+paths. For a single release, use its per-platform manifest. For individual
 prebuilt downloads, use the platform-prefixed checksum manifest attached to
 the GitHub release. Its SBOM asset must be renamed from
 `<platform>-SBOM.cdx.json` to `SBOM.cdx.json` before checking the manifest.
@@ -206,12 +235,12 @@ Verify a detached package signature:
 gpg --verify PassMan-linux-x64.tar.gz.asc PassMan-linux-x64.tar.gz
 gpg --verify PassMan-macOS-universal.dmg.asc PassMan-macOS-universal.dmg
 gpg --verify PassMan.exe.asc PassMan.exe
-gpg --verify PassMan-Setup-1.0.7.exe.asc PassMan-Setup-1.0.7.exe
+gpg --verify PassMan-Setup-1.0.8.exe.asc PassMan-Setup-1.0.8.exe
 ```
 
 How to re-sign after a rebuild is documented in `docs/Build.txt` (Release
 signing). Current platform notes: `docs/WindowsRelease.txt`,
-`docs/LinuxRelease-v1.0.7.txt`, `docs/MacOSRelease-v1.0.7.txt`, and
+`docs/LinuxRelease-v1.0.8.txt`, `docs/MacOSRelease-v1.0.8.txt`, and
 `docs/OpSec.txt`.
 
 Windows release artifact details, checksum, and verification commands are in
@@ -219,7 +248,8 @@ Windows release artifact details, checksum, and verification commands are in
 
 ## Local Code-Signing Certificate
 
-PassMan includes a public self-signed code-signing certificate for local Windows Authenticode verification experiments:
+The v1.0.8 Windows executable and installer use this public self-signed
+code-signing certificate for local Authenticode verification:
 
 ```text
 docs/PassMan_Local_Code_Signing_2026.cer
@@ -229,10 +259,9 @@ Certificate summary:
 
 ```text
 Subject: CN=PassMan Local Code Signing
-Thumbprint: 3BB73D97DCE4216AF3DB571442D8DC7A773FBC71
-Algorithm: RSA 3072-bit, SHA-256
+Thumbprint: 554A90C89385DD8C72D2341FF28BE155F3FC511A
 Enhanced key usage: Code Signing
-Valid: 2026-07-16 to 9999-12-30 (practical non-expiry)
+Valid: 2026-07-04 to 2028-07-04
 ```
 
 This certificate is self-signed and local-only. It is not a replacement for a publicly trusted Windows publisher certificate.
@@ -287,7 +316,7 @@ The repository is configured to ignore:
 - Virtual environments
 - Python caches
 - PyInstaller build output
-- Local release artifacts (published release downloads remain on GitHub Releases)
+- Release artifacts except the explicitly listed v1.0.2 platform packages and manifests, v1.0.3/v1.0.4/v1.0.5 Windows artifacts, and v1.0.6/v1.0.7 macOS/Linux artifacts
 - Local vault files
 - macOS AppleDouble metadata
 - Private GPG key material
