@@ -47,7 +47,9 @@ authentication tag. The payload is Base64 encoded and stored as a JSON string.
 Vault locations
 ---------------
 
-The active vault path is provided to Vault(vault_path()).
+PassMan uses the vault file path saved in application settings when available.
+For older settings that store only a directory, PassMan uses vault.dat in that
+directory. Otherwise it uses the following platform defaults.
 
 When running from source:
 

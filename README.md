@@ -2,7 +2,7 @@
 
 PassMan is a local desktop password manager built with Python and PyQt6. It stores entries in an encrypted `vault.dat` file, protected by a master password and designed to stay offline-first.
 
-Current application version: `1.0.8`
+Current application version: `1.1.0`
 
 The application version is controlled from `src/version.py`.
 
@@ -74,10 +74,16 @@ as `vault.dat.bak` during that migration.
 
 When no existing vault is found, PassMan lets you choose a folder for a new
 vault. It creates both `vault.dat` and `vault.dat.bak` in that folder and
-remembers the chosen folder for later launches. The remembered location is an
+remembers the chosen vault file for later launches. The remembered location is an
 application setting stored outside the vault. The paths below are the initial
-locations PassMan uses when no folder has been chosen yet.
-The folder can also be changed later from **Settings → Move Vault**. PassMan
+locations PassMan uses before a location has been saved.
+
+Use **Settings → Change Vault** to select another existing vault file. PassMan
+locks the current vault and asks for the selected vault's master password. It
+remembers the new file after a successful unlock. If you cancel the unlock,
+PassMan asks for the previous vault's master password so you can reopen it.
+
+Use **Settings → Move Vault** to relocate the current vault. PassMan
 copies and verifies the vault and backup at the destination before switching
 the saved location and removing the original files.
 
@@ -173,6 +179,10 @@ installers and verification assets are attached to the
 
 ## Release Artifacts
 
+The local v1.1.0 Windows x64 executable, installer, SBOM, and signed checksums
+are in `release/v1.1.0/windows/`. See the Windows verification notes for build
+details. [docs/WindowsRelease.txt](docs/WindowsRelease.txt)
+
 The v1.0.8 Windows x64 executable and installer, macOS arm64, Intel, and
 universal DMGs, and Ubuntu 24.04 Linux x64 tarball and Debian package are
 available from the [v1.0.8 GitHub release](https://github.com/Scrince/PassMan/releases/tag/v1.0.8)
@@ -252,7 +262,7 @@ Windows release artifact details, checksum, and verification commands are in
 
 ## Local Code-Signing Certificate
 
-The v1.0.8 Windows executable and installer use this public self-signed
+The v1.1.0 and v1.0.8 Windows executables and installers use this public self-signed
 code-signing certificate for local Authenticode verification:
 
 ```text

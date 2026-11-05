@@ -24,6 +24,7 @@ class SettingsAccessibilityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             window = SettingsWindow(False, False, 300, 30, "Dark", Path(directory) / "vault.dat")
             self.addCleanup(window.close)
+            self.assertEqual(window.change_vault_button.accessibleName(), "Change Vault")
             self.assertEqual(window.move_vault_button.accessibleName(), "Move the vault and backup to another folder")
             self.assertEqual(window.vault_path_label.accessibleName(), "Current vault file path")
             self.assertIn("auto-lock timeout", window.auto_lock_control.value_edit.accessibleName())

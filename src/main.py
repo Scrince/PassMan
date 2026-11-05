@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
 from crypto.vault import InvalidPasswordError, Vault, VaultError, VaultFormatError
 from gui.main_window import MainWindow
 from gui.resizable import ResizableDialog
-from utils.file_paths import VAULT_FILENAME, asset_path, vault_path
+from utils.file_paths import VAULT_FILENAME, asset_path, remember_vault_path, saved_vault_path
 from utils.themes import DEFAULT_THEME_NAME, theme_stylesheet
 from version import APP_DISPLAY_NAME, APP_NAME, APP_VERSION
 
@@ -88,11 +88,7 @@ class PassManApp:
         self.qt.setStyleSheet(theme_stylesheet(self.theme_name))
         if APP_ICON_PATH.exists():
             self.qt.setWindowIcon(QIcon(str(APP_ICON_PATH)))
-        saved_directory = self.settings.value("vault/directory", "", type=str)
-        initial_vault_path = (
-            Path(saved_directory) / VAULT_FILENAME if saved_directory else vault_path()
-        )
-        self.vault = Vault(initial_vault_path)
+        self.vault = Vault(saved_vault_path(self.settings))
         self.window: MainWindow | None = None
 
     def run(self) -> int:
@@ -126,7 +122,7 @@ class PassManApp:
                     self.vault = Vault(selected_path.with_name(VAULT_FILENAME), load_path=selected_path)
                 else:
                     self.vault = Vault(selected_path)
-                self.remember_vault_directory(self.vault.path.parent)
+                remember_vault_path(self.settings, self.vault.path)
                 return True
 
         selected_directory = QFileDialog.getExistingDirectory(
@@ -139,50 +135,47 @@ class PassManApp:
             return False
 
         self.vault = Vault(Path(selected_directory) / VAULT_FILENAME)
-        self.remember_vault_directory(self.vault.path.parent)
+        remember_vault_path(self.settings, self.vault.path)
         return True
 
-    def remember_vault_directory(self, directory: Path) -> None:
-        self.settings.setValue("vault/directory", str(directory.resolve()))
-        self.settings.sync()
-
     def unlock_or_create(self) -> bool:
+        if not self.unlock_vault(self.vault, allow_create=True):
+            return False
+        self.apply_vault_theme()
+        self.show_main_window()
+        return True
+
+    def unlock_vault(self, vault: Vault, *, allow_create: bool = False) -> bool:
+        creating = allow_create and not vault.exists()
         while True:
-            creating = not self.vault.exists()
             dialog = PasswordDialog(creating)
             if dialog.exec() != QDialog.DialogCode.Accepted:
                 return False
             password = dialog.password.text()
             try:
                 if creating:
-                    self.vault.create(password)
+                    vault.create(password)
                 else:
-                    self.vault.unlock(password)
+                    vault.unlock(password)
             except InvalidPasswordError:
-                if not creating and self.offer_backup_restore(password):
-                    self.apply_vault_theme()
-                    self.show_main_window()
+                if not creating and self.offer_backup_restore(vault, password):
                     return True
                 QMessageBox.warning(None, "Unlock failed", "Incorrect password or corrupted vault.")
                 continue
             except VaultFormatError:
-                if not creating and self.offer_backup_restore(password):
-                    self.apply_vault_theme()
-                    self.show_main_window()
+                if not creating and self.offer_backup_restore(vault, password):
                     return True
                 QMessageBox.warning(None, "Unlock failed", "Vault is corrupted and no usable backup was found.")
                 continue
             except OSError as exc:
                 QMessageBox.warning(None, "Vault unavailable", f"Could not read or write the vault:\n{exc}")
                 continue
-            self.apply_vault_theme()
-            self.show_main_window()
             return True
 
-    def offer_backup_restore(self, password: str) -> bool:
-        if not self.vault.backup_exists():
+    def offer_backup_restore(self, vault: Vault, password: str) -> bool:
+        if not vault.backup_exists():
             return False
-        backup_vault = Vault(self.vault.backup_path)
+        backup_vault = Vault(vault.backup_path)
         try:
             backup_vault.unlock(password, migrate=False)
         except VaultError:
@@ -193,14 +186,14 @@ class PassManApp:
         answer = QMessageBox.question(
             None,
             "Restore backup?",
-            "The main vault could not be opened, but vault.dat.bak unlocked successfully.\n\n"
+            "The selected vault could not be opened, but its backup unlocked successfully.\n\n"
             "Restore the encrypted backup now?",
         )
         if answer != QMessageBox.StandardButton.Yes:
             return False
         try:
-            self.vault.restore_backup()
-            self.vault.unlock(password)
+            vault.restore_backup()
+            vault.unlock(password)
         except (VaultError, OSError) as exc:
             QMessageBox.warning(None, "Restore failed", f"Could not restore the backup:\n{exc}")
             return False
@@ -209,6 +202,7 @@ class PassManApp:
     def show_main_window(self) -> None:
         self.window = MainWindow(self.vault, self.qt, self.theme_name, self.settings)
         self.window.lock_requested.connect(self.lock)
+        self.window.vault_change_requested.connect(self.change_vault)
         self.window.theme_changed.connect(self.update_theme)
         self.window.show()
 
@@ -219,11 +213,33 @@ class PassManApp:
         self.theme_name = self.vault.model.settings.theme_name
         self.qt.setStyleSheet(theme_stylesheet(self.theme_name))
 
-    def lock(self) -> None:
+    def close_and_lock_vault(self) -> None:
         if self.window:
+            self.window.setAttribute(Qt.WidgetAttribute.WA_QuitOnClose, False)
             self.window.close()
             self.window = None
         self.vault.lock()
+
+    def change_vault(self, path: Path) -> None:
+        self.close_and_lock_vault()
+        candidate = Vault(path)
+        switched = self.unlock_vault(candidate)
+        if switched:
+            self.vault = candidate
+        elif not self.unlock_vault(self.vault):
+            self.qt.quit()
+            return
+        self.apply_vault_theme()
+        self.show_main_window()
+        if switched and not remember_vault_path(self.settings, path):
+            QMessageBox.warning(
+                self.window,
+                "Vault location not saved",
+                "This vault is open for this session. PassMan could not remember its location for the next launch.",
+            )
+
+    def lock(self) -> None:
+        self.close_and_lock_vault()
         if not self.unlock_or_create():
             self.qt.quit()
 
