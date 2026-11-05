@@ -57,7 +57,7 @@ from utils.apple_passwords_import import (
     merge_apple_authenticator_entries,
     merge_apple_password_entries,
 )
-from utils.file_paths import VAULT_FILENAME, asset_path
+from utils.file_paths import VAULT_FILENAME, asset_path, remember_vault_path
 from utils.themes import DEFAULT_THEME_NAME, theme_stylesheet
 from version import APP_DISPLAY_NAME, APP_NAME
 
@@ -393,6 +393,7 @@ class BackupWindow(ResizableDialog):
 
 class MainWindow(ResizableMainWindow):
     lock_requested = pyqtSignal()
+    vault_change_requested = pyqtSignal(Path)
     theme_changed = pyqtSignal(str)
 
     def __init__(self, vault: Vault, app: QApplication, theme_name: str = DEFAULT_THEME_NAME, vault_settings: QSettings | None = None) -> None:
@@ -869,6 +870,7 @@ class MainWindow(ResizableMainWindow):
     def closeEvent(self, event) -> None:
         self.clipboard.flush()
         self.auto_lock_timer.stop()
+        self.app.removeEventFilter(self)
         super().closeEvent(event)
 
     def open_settings(self) -> None:
@@ -885,7 +887,8 @@ class MainWindow(ResizableMainWindow):
         dialog.lock_requested.connect(self.lock_requested.emit)
         dialog.settings_changed.connect(self.update_settings)
         dialog.vault_move_requested.connect(lambda directory: self.move_vault_to(directory, dialog))
-        dialog.exec()
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.selected_vault_path is not None:
+            self.vault_change_requested.emit(dialog.selected_vault_path)
 
     def move_vault_to(self, directory: str, dialog: SettingsWindow) -> None:
         destination = Path(directory).resolve() / VAULT_FILENAME
@@ -899,20 +902,11 @@ class MainWindow(ResizableMainWindow):
             return
 
         settings = self.vault_settings
-        if settings is not None:
-            previous = settings.value("vault/directory", "", type=str)
-            settings.setValue("vault/directory", str(destination.parent))
-            settings.sync()
-            if settings.status() != QSettings.Status.NoError:
-                if previous:
-                    settings.setValue("vault/directory", previous)
-                else:
-                    settings.remove("vault/directory")
-                settings.sync()
-                destination.unlink(missing_ok=True)
-                destination.with_name(f"{destination.name}.bak").unlink(missing_ok=True)
-                QMessageBox.warning(dialog, "Move failed", "Could not save the new vault location.")
-                return
+        if settings is not None and not remember_vault_path(settings, destination):
+            destination.unlink(missing_ok=True)
+            destination.with_name(f"{destination.name}.bak").unlink(missing_ok=True)
+            QMessageBox.warning(dialog, "Move failed", "Could not save the new vault location.")
+            return
 
         backup = self.vault.backup_path
         self.vault.path = destination
@@ -943,6 +937,13 @@ class MainWindow(ResizableMainWindow):
         BackupWindow(self.vault, self.reload_from_vault_settings, self).exec()
 
     def update_settings(self, debug: bool, auto_lock: int, clipboard_clear: int, theme_name: str) -> None:
+        debug = debug if self.allow_debug_tools else False
+        settings_changed = (
+            self.debug_enabled != debug
+            or self.auto_lock_seconds != auto_lock
+            or self.clipboard_clear_seconds != clipboard_clear
+            or self.theme_name != theme_name
+        )
         previous = (
             self.debug_enabled,
             self.auto_lock_seconds,
@@ -953,15 +954,16 @@ class MainWindow(ResizableMainWindow):
             self.vault.model.settings.clipboard_clear_seconds,
             self.vault.model.settings.theme_name,
         )
-        self.debug_enabled = debug if self.allow_debug_tools else False
+        self.debug_enabled = debug
         self.auto_lock_seconds = auto_lock
         self.clipboard_clear_seconds = clipboard_clear
         self.theme_name = theme_name
-        self.vault.model.settings.debug_enabled = self.debug_enabled
-        self.vault.model.settings.auto_lock_seconds = self.auto_lock_seconds
-        self.vault.model.settings.clipboard_clear_seconds = self.clipboard_clear_seconds
-        self.vault.model.settings.theme_name = self.theme_name
-        if not self._persist_vault():
+        if settings_changed:
+            self.vault.model.settings.debug_enabled = self.debug_enabled
+            self.vault.model.settings.auto_lock_seconds = self.auto_lock_seconds
+            self.vault.model.settings.clipboard_clear_seconds = self.clipboard_clear_seconds
+            self.vault.model.settings.theme_name = self.theme_name
+        if settings_changed and not self._persist_vault():
             (
                 self.debug_enabled,
                 self.auto_lock_seconds,

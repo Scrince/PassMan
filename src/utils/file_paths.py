@@ -3,6 +3,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from PyQt6.QtCore import QSettings
+
 
 VAULT_FILENAME = "vault.dat"
 APP_DATA_DIRNAME = "PassMan"
@@ -52,3 +54,26 @@ def vault_path() -> Path:
         if executable_vault.is_file() or executable_backup.is_file():
             return executable_vault
     return app_dir() / VAULT_FILENAME
+
+
+def saved_vault_path(settings: QSettings) -> Path:
+    filename = settings.value("vault/file", "", type=str)
+    if filename:
+        return Path(filename)
+    directory = settings.value("vault/directory", "", type=str)
+    return Path(directory) / VAULT_FILENAME if directory else vault_path()
+
+
+def remember_vault_path(settings: QSettings, path: Path) -> bool:
+    key = "vault/file"
+    previous = settings.value(key, "", type=str)
+    settings.setValue(key, str(path.absolute()))
+    settings.sync()
+    if settings.status() == QSettings.Status.NoError:
+        return True
+    if previous:
+        settings.setValue(key, previous)
+    else:
+        settings.remove(key)
+    settings.sync()
+    return False

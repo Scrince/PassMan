@@ -18,6 +18,10 @@ Current security-relevant implementation behavior:
   - Manual backup creates another encrypted vault.dat-style file.
   - Manual restore validates the selected backup with the current password
     before replacing the active vault.
+  - Change Vault in Settings locks the active vault before prompting for the
+    selected vault's password. PassMan remembers the selected file after a
+    successful unlock. Canceling the unlock requires re-authentication to
+    return to the previous vault.
   - Frozen Linux builds store vault.dat under XDG_DATA_HOME/PassMan.
   - Frozen macOS builds store vault.dat under
     ~/Library/Application Support/PassMan.
