@@ -4,6 +4,20 @@ All notable changes to PassMan are documented in this file.
 
 This project follows a simple versioned changelog. Dates use `YYYY-MM-DD`.
 
+## 1.1.0 - 2026-11-04
+
+### Added
+
+- Added **Change Vault** in Settings to lock the current vault and unlock another existing vault. PassMan remembers the exact file after a successful switch.
+
+### Fixed
+
+- Closing Settings without changing its controls no longer triggers an unnecessary encrypted vault save, reducing close time.
+
+### Release
+
+- Built the Windows x64 executable, installer, and CycloneDX SBOM locally with the Settings close-time fix. Authenticode-signed both executables and OpenPGP-signed the artifacts and checksum manifests.
+
 ## 1.0.8 - 2026-11-03
 
 ### Added

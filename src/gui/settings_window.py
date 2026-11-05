@@ -99,6 +99,7 @@ class SettingsWindow(ResizableDialog):
         self.setWindowTitle("Settings")
         self.setMinimumSize(460, 360)
         self.resize(520, 420)
+        self.selected_vault_path: Path | None = None
 
         root = QVBoxLayout(self)
         title = QLabel("Settings")
@@ -134,8 +135,14 @@ class SettingsWindow(ResizableDialog):
         self.move_vault_button.setToolTip(
             "Copies and verifies the vault and backup before switching locations."
         )
+        self.change_vault_button = QPushButton("Change Vault…")
+        self.change_vault_button.setAccessibleName("Change Vault")
+        self.change_vault_button.setToolTip("Lock this vault and open another existing vault.")
+        vault_actions = QHBoxLayout()
+        vault_actions.addWidget(self.change_vault_button)
+        vault_actions.addWidget(self.move_vault_button)
         form.addRow("Current vault file", self.vault_path_label)
-        form.addRow(self.move_vault_button)
+        form.addRow(vault_actions)
         root.addLayout(form)
 
         self.old_password = QLineEdit()
@@ -172,11 +179,39 @@ class SettingsWindow(ResizableDialog):
         change.clicked.connect(self._change_password)
         lock.clicked.connect(self._lock_and_close)
         close.clicked.connect(self._save_and_close)
+        self.change_vault_button.clicked.connect(self._choose_vault)
         self.move_vault_button.clicked.connect(self._request_vault_move)
 
     def set_vault_path(self, path: Path) -> None:
         self.vault_path_label.setText(str(path))
         self.vault_path_label.setAccessibleDescription(f"Current vault file: {path}")
+
+    def _choose_vault(self) -> None:
+        current = Path(self.vault_path_label.text())
+        selected, _ = QFileDialog.getOpenFileName(
+            self,
+            "Choose a vault to open",
+            str(current.parent),
+            "Vault files (*.dat);;All files (*)",
+        )
+        if not selected or not self.isVisible():
+            return
+        try:
+            path = Path(selected).resolve()
+            if path == current.resolve():
+                return
+            if path.suffix.lower() == ".bak" or not path.is_file():
+                QMessageBox.warning(
+                    self,
+                    "Choose a vault",
+                    "Select an existing vault file. Use Backup Manager to restore backups.",
+                )
+                return
+        except (OSError, RuntimeError) as exc:
+            QMessageBox.warning(self, "Vault unavailable", f"Could not access the selected vault:\n{exc}")
+            return
+        self.selected_vault_path = path
+        self.accept()
 
     def _request_vault_move(self) -> None:
         selected = QFileDialog.getExistingDirectory(

@@ -4,6 +4,42 @@ PassMan Windows Release Verification
 Current release status
 ----------------------
 
+PassMan v1.1.0 for Windows x64 was built locally from the working tree on
+2026-11-04 with Windows 11, Python 3.14.5, PyInstaller 6.22.3, and Inno
+Setup 6.7.3. It adds Change Vault in Settings. PassMan locks the current
+vault before opening another and remembers the selected file after unlock.
+Closing Settings without changing a control skips the encrypted vault save,
+which avoids the Argon2id delay on an unchanged close.
+
+Artifacts under release/v1.1.0/windows/
+
+  PassMan.exe
+  PassMan-Setup-1.1.0.exe
+  SBOM.cdx.json
+  SHA256SUMS
+
+All four files have detached OpenPGP signatures. The executable and installer
+also carry DigiCert-timestamped Authenticode signatures from the local
+self-signed certificate described below. Windows reports an untrusted root
+for that certificate. The OpenPGP signatures were verified with the release
+public key in a separate keyring. Ruff and all 31 unit tests passed.
+The packaged executable passed a 10-second offscreen startup check. The
+switch flow was tested from source with synthetic vaults.
+
+Verify the current build from the repository root:
+
+  gpg --import docs/PassMan_Release_Signing_2026_pubkey.asc
+  gpg --verify release/v1.1.0/windows/SHA256SUMS.asc release/v1.1.0/windows/SHA256SUMS
+  gpg --verify docs/SHA256SUMS.asc docs/SHA256SUMS
+  Get-Content release/v1.1.0/windows/SHA256SUMS
+  Get-FileHash -Algorithm SHA256 release/v1.1.0/windows/PassMan.exe,release/v1.1.0/windows/PassMan-Setup-1.1.0.exe,release/v1.1.0/windows/SBOM.cdx.json
+
+To verify an individual file, run gpg --verify with its .asc signature
+followed by the file path.
+
+Published v1.0.8 release
+------------------------
+
 The v1.0.8 Windows x64 executable, installer, and CycloneDX SBOM were built on
 Windows 11 x64 with Python 3.14.5, PyInstaller 6.22.3, and Inno Setup 6.7.3.
 Build date: 2026-11-03. Packages were built locally and verified before
@@ -76,7 +112,7 @@ Verification completed:
   - All v1.0.8 platform manifests, artifact signatures, and the aggregate
     manifest were checked using a temporary keyring with only the public key.
 
-Verify the current Windows files from the repository root:
+Verify the v1.0.8 Windows files from the repository root:
 
   gpg --import docs/PassMan_Release_Signing_2026_pubkey.asc
   gpg --verify release/v1.0.8/windows/PassMan.exe.asc release/v1.0.8/windows/PassMan.exe
