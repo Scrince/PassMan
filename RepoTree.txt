@@ -1,0 +1,64 @@
+PassMan production repository tree
+==================================
+
+.
+├── src/                         Production Python application
+│   ├── main.py                  Desktop application entry point
+│   ├── version.py               Application version metadata
+│   ├── crypto/                  Vault encryption, key derivation, and vault formats
+│   ├── gui/                     PyQt6 windows, panels, and widgets
+│   ├── models/                  Vault and feature data models
+│   ├── utils/                   Runtime paths, clipboard, imports, and shared helpers
+│   └── assets/                  Packaged icons and platform runtime assets
+│       ├── linux/
+│       ├── macos/
+│       └── windows/
+├── README.md                    End-user overview, usage, and release verification guidance
+├── LICENSE                      MIT license
+├── CHANGELOG.md                 Version history
+├── SECURITY.md                  Vulnerability reporting policy
+├── THREAT_MODEL.md              Security boundaries and residual risks
+├── docs/                        User, security, build, and release documentation
+│   ├── ApplePasswordsImport.md  Apple Passwords CSV import guide
+│   ├── Encryption.txt           Vault format and encryption details
+│   ├── OpSec.txt                Operational security guidance
+│   ├── Build.txt                Platform packaging prerequisites and process
+│   ├── ReleaseProcess.md        Maintainer release procedure
+│   ├── *Release*.txt            Platform release notes and verification instructions
+│   └── SHA256SUMS*              Aggregate release checksums and signature
+├── pages/
+│   └── index.html               Static project page
+├── pyproject.toml               Runtime dependencies, package metadata, and entry point
+├── requirements.txt             Pinned runtime dependencies for source execution
+├── build.py                     Native-platform release packaging driver
+├── PassMan.spec                 PyInstaller application bundle definition
+└── installer/
+    └── PassMan.iss              Windows installer definition
+
+Retained signed release artifacts (actual files organized by version/platform):
+└── release/
+    ├── v1.0.0/ … v1.0.8/
+    │   ├── linux/                Linux tarballs and Debian packages, manifests, SBOMs
+    │   ├── macos/                macOS disk images, manifests, SBOMs
+    │   └── windows/              Windows executable/installers, manifests, SBOMs
+    └── v1.1.0/windows/           Current retained Windows executable/installer set
+
+Production notes
+================
+
+- `src/` is the source of truth for application code, version metadata, and packaged
+  runtime assets. The top-level `assets/` branding kit is not part of the application.
+- `build.py` invokes PyInstaller using `src/main.py`, `src/assets/`, and the project
+  version. It creates platform-specific packages on the target operating system;
+  Windows installer creation additionally uses Inno Setup and `installer/PassMan.iss`.
+  `PassMan.spec` defines the portable PyInstaller bundle path. Build intermediates in
+  `build/` and `dist/` are not production source or retained release contents.
+- `release/v*/<platform>/` contains retained, signed packages and associated manifests
+  and SBOMs. Published release assets may also be distributed through GitHub Releases.
+- Linux produces x64 packages in the retained release history; macOS artifacts cover
+  arm64, x64, or universal builds; Windows artifacts are x64. Packaging is native to
+  the target OS; Windows cross-building from Linux/macOS is unsupported.
+- Source execution uses Python 3.12+ with dependencies from `pyproject.toml` (also
+  listed in `requirements.txt`). Frozen builds carry their runtime dependencies.
+- Vault data is user data created at runtime and is intentionally absent from this
+  production source tree description.
